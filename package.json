@@ -1,0 +1,22 @@
+{
+  "name": "spk-indexer-node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ceramicnetwork/common": "^1.4.0",
+    "@ceramicnetwork/http-client": "^1.2.2",
+    "@ceramicstudio/idx": "^0.12.2",
+    "3id-did-provider": "^1.1.0",
+    "base64url": "^3.0.1",
+    "mongodb": "^4.1.2",
+    "mongoose": "^6.0.5",
+    "p-queue": "^7.1.0",
+    "uuid": "^8.3.2"
+  }
+}

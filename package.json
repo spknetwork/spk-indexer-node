@@ -14,8 +14,10 @@
     "@ceramicstudio/idx": "^0.12.2",
     "3id-did-provider": "^1.1.0",
     "base64url": "^3.0.1",
+    "ipfs-http-client": "^52.0.5",
     "mongodb": "^4.1.2",
     "mongoose": "^6.0.5",
+    "node-schedule": "^2.0.0",
     "p-queue": "^7.1.0",
     "uuid": "^8.3.2"
   }

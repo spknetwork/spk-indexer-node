@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch './src/**/*.ts' --exec 'ts-node' ./src/index.ts",
+    "dev": "nodemon --watch './src/**/*.ts' --exec ts-node ./src/index.ts",
     "lint:fix": "eslint --fix \"src/**/*.{ts,tsx}\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\""
   },

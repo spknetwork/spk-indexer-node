@@ -16,7 +16,7 @@ module.exports = {
   ],
   plugins: ['@typescript-eslint', 'prettier', 'unused-imports'],
   rules: {
-    'prettier/prettier': 'error',
+    'prettier/prettier': 'warn',
     '@typescript-eslint/camelcase': 'off',
     'unused-imports/no-unused-imports-ts': 'error',
     '@typescript-eslint/no-unused-vars': 'off',

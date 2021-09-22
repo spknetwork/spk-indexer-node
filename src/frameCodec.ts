@@ -1,14 +1,14 @@
-import CborDag from '@ipld/dag-cbor'
+import { encode as CborEncode, decode as CborDecode } from '@ipld/dag-cbor'
 
 export function encode(msg) {
   if (!msg.type) {
     msg.app = 'spk.network'
   }
-  return CborDag.encode(msg)
+  return CborEncode(msg)
 }
 
 export function decode(msg) {
-  const obj = CborDag.decode(msg) as any
+  const obj = CborDecode(msg) as any
   if (typeof obj !== 'object') {
     throw new Error('Invalid message type [0]')
   }

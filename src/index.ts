@@ -3,13 +3,14 @@ import CeramicHTTP from '@ceramicnetwork/http-client'
 import Crypto from 'crypto'
 import { MongoClient } from 'mongodb'
 
-// import { IDX } from '@ceramicstudio/idx'
 // import { v4 as uuidv4 } from 'uuid'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver'
 import { DID } from 'dids'
 import base64url from 'base64url'
 import { CustodianSystem } from './custodianSystem'
+import { IDX } from '@ceramicstudio/idx'
+import { postSpider } from './postSpider'
 
 const NETWORK_ID = '/spk.network/testnet-dev' // Future use for network isolation
 
@@ -22,10 +23,13 @@ const docDef = {
 }
 class Core {
   ceramic
+  db
   graphDocs
   graphIndex
   _threeId
   custodianSystem
+  idx
+  postSpider
 
   constructor() {
     this.ceramic = new CeramicHTTP('https://ceramic-clay.3boxlabs.com') //Using the public node for now.
@@ -59,6 +63,14 @@ class Core {
         expiration: null,
       })
       if (await this.graphIndex.findOne({ _id: arg.id })) {
+        this.graphIndex.findOneAndUpdate(
+          { _id: arg.id },
+          {
+            $set: {
+              children: outArray,
+            },
+          },
+        )
       } else {
         await this.graphIndex.insertOne({
           _id: arg.id,
@@ -151,10 +163,10 @@ class Core {
 
     await client.connect()
     console.log('Connected successfully to server')
-    const db = client.db(dbName)
+    this.db = client.db(dbName)
 
-    this.graphDocs = db.collection('graph.docs')
-    this.graphIndex = db.collection('graph.index')
+    this.graphDocs = this.db.collection('graph.docs')
+    this.graphIndex = this.db.collection('graph.index')
 
     this._threeId = await ThreeIdProvider.create({
       ceramic: this.ceramic,
@@ -177,15 +189,23 @@ class Core {
     await this.ceramic.setDID(did)
     console.log(this._threeId.getDidProvider())
     console.log(did.id)
+    this.idx = new IDX({
+      ceramic: this.ceramic,
+    })
 
     this.custodianSystem = new CustodianSystem(this)
-    this.custodianSystem.start()
+    await this.custodianSystem.start()
+    this.postSpider = new postSpider(this)
+    await this.postSpider.start()
   }
 }
 
 async function startup(): Promise<void> {
   const instance = new Core()
   await instance.start()
+  await instance.postSpider.pullSingle(
+    `did:3:kjzl6cwe1jw147v2fzxjvpbvjp87glksoi2p698t6bbhuv2cuc3vie7kcopvyfb`,
+  )
 }
 
 void startup()

@@ -1,7 +1,7 @@
 import ThreeIdProvider from '3id-did-provider'
 import { CeramicClient } from '@ceramicnetwork/http-client'
 import Crypto from 'crypto'
-import { MongoClient } from 'mongodb'
+import { MongoClient, Db, Collection } from 'mongodb'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver'
 import { DID } from 'dids'
@@ -10,22 +10,25 @@ import { CustodianSystem } from './custodianSystem'
 import { IDX } from '@ceramicstudio/idx'
 import { postSpider } from './postSpider'
 import { SchemaValidator } from './modules/schema-validator/schema-validator.service'
+import { MongoCollections, MONGO_DATABASE_NAME } from './modules/mongo-access/mongo.constants'
+import { Document, ObjectId } from 'bson'
 
 export class Core {
   ceramic: CeramicClient
-  db
-  graphDocs
-  graphIndex
+  db: Db
+  graphDocs: Collection<Document>
+  graphIndex: Collection<Document>
   _threeId
   custodianSystem
   idx
   postSpider
   schemaValidator: SchemaValidator
+  mongoClient: MongoClient
 
-  constructor(ceramic: CeramicClient) {
+  constructor(ceramic: CeramicClient, mongo: MongoClient) {
     this.ceramic = ceramic
-    //     this.ceramic = new CeramicHTTP('https://ceramic-clay.3boxlabs.com') //Using the public node for now.
-    this.schemaValidator = new SchemaValidator(this.ceramic)
+    this.mongoClient = mongo
+    this.schemaValidator = new SchemaValidator(this.ceramic, this.mongoClient)
   }
 
   /**
@@ -56,7 +59,7 @@ export class Core {
         expiration: null,
       })
       if (await this.graphIndex.findOne({ _id: arg.id })) {
-        this.graphIndex.findOneAndUpdate(
+        await this.graphIndex.findOneAndUpdate(
           { _id: arg.id },
           {
             $set: {
@@ -81,9 +84,10 @@ export class Core {
    * @returns
    */
   async getChildren(id) {
-    const docs = await this.graphDocs.find({
+    const docs = this.graphDocs.find({
       parent_id: id,
     })
+
     console.log(docs)
     const out = []
     for await (const entry of docs) {
@@ -110,7 +114,7 @@ export class Core {
       { anchor: false, publish: false },
     )
     await this.graphDocs.insertOne({
-      _id: permlink,
+      _id: new ObjectId(permlink),
       streamId: output.id.toUrl(),
       content,
       expire: null,
@@ -147,18 +151,10 @@ export class Core {
   }
 
   async start() {
-    const url = 'mongodb://localhost:27017'
-    const client = new MongoClient(url)
+    this.db = this.mongoClient.db(MONGO_DATABASE_NAME)
 
-    // Database Name
-    const dbName = 'spk-indexer-test'
-
-    await client.connect()
-    console.log('Connected successfully to server')
-    this.db = client.db(dbName)
-
-    this.graphDocs = this.db.collection('graph.docs')
-    this.graphIndex = this.db.collection('graph.index')
+    this.graphDocs = this.db.collection(MongoCollections.GraphDocs)
+    this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
 
     this._threeId = await ThreeIdProvider.create({
       ceramic: this.ceramic,

@@ -1,62 +1,49 @@
 import { JSONSchema7 } from 'json-schema'
 import { CeramicClient } from '@ceramicnetwork/http-client'
-import { TileDocument } from '@ceramicnetwork/stream-tile'
 import { IndexedDocument } from '../../types/indexedDocument.type'
 import { NotImplementedException } from '../../exceptions/not-implemented.exception'
+import { MongoService } from '../mongo-access/mongo.service'
+import { MongoClient } from 'mongodb'
 
 export class SchemaValidator {
   ceramic: CeramicClient
-  constructor(ceramic: CeramicClient) {
+  mongoService: MongoService
+  constructor(ceramic: CeramicClient, mongoClient: MongoClient) {
     this.ceramic = ceramic
+    this.mongoService = new MongoService(mongoClient)
   }
 
   /**
-   * Registers schema with ceramic
+   * Registers schema with indexer
    */
-  public async registerSchema(schema: JSONSchema7): Promise<TileDocument> {
-    // TODO - figure out if we need to capture and index the ceramic ID of the schema
-
-    const created = await TileDocument.create(
-      this.ceramic,
-      {
-        $schema: 'http://json-schema.org/draft-07/schema#',
-        title: 'QuickStartSchema',
-        type: 'object',
-        properties: {
-          id: { type: 'string' },
-          foo: { type: 'string' },
-          revision: { type: 'number' },
-        },
-        required: ['foo'],
-      },
-      {
-        controllers: [this.ceramic?.did?.id || ''],
-        family: 'schema',
-      },
-    )
-
-    return created
+  public async registerSchema(schemaStreamId: string): Promise<void> {
+    // TODO - register schema with mongo collection
+    throw new NotImplementedException()
   }
 
   /**
-   * Deregisters schema with ceramic
+   * Deregisters schema with indexer
    */
-  public async deregisterSchema(schema: JSONSchema7) {
-    // TODO - figure out if we can deregister a schema based on the schema definition itself or if we need the ceramic document ID
+  public async deregisterSchema(schemaStreamId: string) {
+    // TODO - deregister schema with mongo collection
     throw new NotImplementedException('deregisterSchema')
   }
 
   /**
    * Crawls indexed subgraph and validates schema of each document in the subgraph vs the advertised schema
    */
-  public async validateSubgraphVsSchema(subgraphRoot: IndexedDocument, schema: JSONSchema7) {
+  public async validateSubgraphsVsSchema(subgraphRoots: IndexedDocument[], schemaId: string) {
     throw new NotImplementedException('validateSubgraphVsSchema')
   }
 
   /**
    * Query peers for root node of subgraphs matching a specified schema
    */
-  public async queryPeersForSubgraphs(schemas: JSONSchema7[]) {
+  public async queryPeersForSubgraphs(schemaIds: string[]) {
+    /**
+ 	1. When registering pull schema from Ceramic using streamID. (Cache in mongodb). Add schemaID to list in memory.
+	2. When deregistering remove schemaID from in memory list. Optionally remove from database cache (maybe have an expiration in the future?) (For now garbage collection isn't very important, I am fine with skipping removal from caches)
+ 	*/
     throw new NotImplementedException()
   }
 

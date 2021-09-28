@@ -12,8 +12,8 @@ import { MongoCollections, MONGO_DATABASE_NAME } from '../../mongo-access/mongo.
 import { ObjectId } from 'bson'
 import { CustodianService } from './custodian.service'
 import { PostSpiderService } from './post-spider.service'
-import { IndexedDocument } from '../../../types/indexed-document.model'
-import { IndexedNode } from '../../../types/indexed-node.model'
+import { IndexedDocument } from '../models/indexed-document.model'
+import { IndexedNode } from '../models/indexed-node.model'
 
 export class CoreService {
   ceramic: CeramicClient

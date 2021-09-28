@@ -1,5 +1,5 @@
 import { CeramicClient } from '@ceramicnetwork/http-client'
-import { IndexedDocument } from '../../../types/indexed-document.model'
+import { IndexedDocument } from '../../graph-indexer/models/indexed-document.model'
 import { NotImplementedException } from '../../../common/exceptions/not-implemented.exception'
 import { MongoService } from '../../mongo-access/mongo.service'
 import { MongoClient } from 'mongodb'

@@ -1,8 +1,7 @@
-import { JSONSchema7 } from 'json-schema'
 import { CeramicClient } from '@ceramicnetwork/http-client'
-import { IndexedDocument } from '../../types/indexedDocument.type'
-import { NotImplementedException } from '../../exceptions/not-implemented.exception'
-import { MongoService } from '../mongo-access/mongo.service'
+import { IndexedDocument } from '../../../types/indexed-document.model'
+import { NotImplementedException } from '../../../common/exceptions/not-implemented.exception'
+import { MongoService } from '../../mongo-access/mongo.service'
 import { MongoClient } from 'mongodb'
 
 export class SchemaValidator {
@@ -50,7 +49,7 @@ export class SchemaValidator {
   /**
    * Respond to query from peers asking for subgraphs matching a specific schema
    */
-  public async getSubgraphsMatchingSchemas(schema: JSONSchema7[]) {
+  public async getSubgraphsMatchingSchemas(schema: string[]) {
     throw new NotImplementedException()
   }
 

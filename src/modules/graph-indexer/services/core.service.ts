@@ -6,22 +6,24 @@ import { TileDocument } from '@ceramicnetwork/stream-tile'
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver'
 import { DID } from 'dids'
 import base64url from 'base64url'
-import { CustodianSystem } from './custodianSystem'
 import { IDX } from '@ceramicstudio/idx'
-import { postSpider } from './postSpider'
-import { SchemaValidator } from './modules/schema-validator/schema-validator.service'
-import { MongoCollections, MONGO_DATABASE_NAME } from './modules/mongo-access/mongo.constants'
-import { Document, ObjectId } from 'bson'
+import { SchemaValidator } from '../../schema-validator/services/schema-validator.service'
+import { MongoCollections, MONGO_DATABASE_NAME } from '../../mongo-access/mongo.constants'
+import { ObjectId } from 'bson'
+import { CustodianService } from './custodian.service'
+import { PostSpiderService } from './post-spider.service'
+import { IndexedDocument } from '../../../types/indexed-document.model'
+import { IndexedNode } from '../../../types/indexed-node.model'
 
-export class Core {
+export class CoreService {
   ceramic: CeramicClient
   db: Db
-  graphDocs: Collection<Document>
-  graphIndex: Collection<Document>
+  graphDocs: Collection<IndexedDocument>
+  graphIndex: Collection<IndexedNode>
   _threeId
-  custodianSystem
+  custodianSystem: CustodianService
   idx
-  postSpider
+  postSpider: PostSpiderService
   schemaValidator: SchemaValidator
   mongoClient: MongoClient
 
@@ -35,42 +37,49 @@ export class Core {
    * Compiles graph index from list of stored graph docs.
    */
   async indexRefs() {
-    const out = await this.graphDocs
+    const storedDocs = await this.graphDocs
       .find({
-        parent_id: null,
+        parentId: null,
       })
       .toArray()
-    const outObj = {}
-    const outArray = []
-    for (const arg of out) {
-      const argId = arg.id || arg._id
-      const output = (
+
+    const childDocArray = []
+
+    for (const doc of storedDocs) {
+      // Q for Vaultec - do we need to fall back on doc._id since streamId is required?
+      //       const docId = doc.streamId || doc._id
+
+      const childDocs = (
         await this.graphDocs
           .find({
-            parent_id: arg.id,
+            parentId: doc.streamId,
           })
           .toArray()
-      ).map((e) => e.id || e._id)
+      ).map((child) => child.streamId)
 
-      outObj[argId] = output
-      outArray.push({
-        id: argId,
-        children: output,
+      // Same question as above
+      //       ).map((child) => child.streamId || child._id)
+
+      childDocArray.push({
+        id: doc.streamId,
+        children: childDocs,
         expiration: null,
       })
-      if (await this.graphIndex.findOne({ _id: arg.id })) {
+
+      if (await this.graphIndex.findOne({ streamId: doc.streamId })) {
         await this.graphIndex.findOneAndUpdate(
-          { _id: arg.id },
+          { streamId: doc.streamId },
           {
             $set: {
-              children: outArray,
+              children: childDocArray,
             },
           },
         )
       } else {
         await this.graphIndex.insertOne({
-          _id: arg.id,
-          children: output,
+          _id: new ObjectId(),
+          streamId: doc.streamId,
+          children: childDocs,
           expiration: null,
           custodian_nodes: [],
         })
@@ -85,7 +94,7 @@ export class Core {
    */
   async getChildren(id) {
     const docs = this.graphDocs.find({
-      parent_id: id,
+      parentId: id,
     })
 
     console.log(docs)
@@ -132,7 +141,7 @@ export class Core {
    */
   async getPost(streamId) {
     const cachedDoc = await this.graphDocs.findOne({
-      streamId,
+      streamId: streamId,
     })
     if (cachedDoc) {
       return cachedDoc.content
@@ -140,7 +149,7 @@ export class Core {
       const tileDoc = await TileDocument.load(this.ceramic, streamId)
 
       await this.graphDocs.insertOne({
-        streamId,
+        streamId: streamId,
         content: tileDoc.content,
         expire: null,
         updated_at: new Date(),
@@ -181,9 +190,9 @@ export class Core {
       ceramic: this.ceramic,
     })
 
-    this.custodianSystem = new CustodianSystem(this)
+    this.custodianSystem = new CustodianService(this)
     await this.custodianSystem.start()
-    this.postSpider = new postSpider(this)
+    this.postSpider = new PostSpiderService(this)
     await this.postSpider.start()
   }
 }

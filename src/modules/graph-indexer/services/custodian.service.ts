@@ -2,13 +2,13 @@ import { StreamID } from '@ceramicnetwork/streamid'
 import IPFSHTTP from 'ipfs-http-client'
 import NodeSchedule from 'node-schedule'
 
-import { decode, encode } from './frameCodec'
+import { decode, encode } from '../utils/frame-codec.utils'
 
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 
 const CUS_ANNOUNCE = 'cust_announce'
 
-export class CustodianSystem {
+export class CustodianService {
   ipfs
   constructor(private readonly self) {
     this.self = self

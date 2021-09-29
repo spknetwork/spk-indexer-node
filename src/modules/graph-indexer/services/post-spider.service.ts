@@ -1,7 +1,7 @@
 import NodeSchedule from 'node-schedule'
 import StreamID from '@ceramicnetwork/streamid'
 
-export class postSpider {
+export class PostSpiderService {
   col
   constructor(private readonly self) {
     this.self = self

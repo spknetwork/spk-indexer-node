@@ -6,71 +6,78 @@ import { TileDocument } from '@ceramicnetwork/stream-tile'
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver'
 import { DID } from 'dids'
 import base64url from 'base64url'
-import { CustodianSystem } from './custodianSystem'
 import { IDX } from '@ceramicstudio/idx'
-import { postSpider } from './postSpider'
-import { SchemaValidator } from './modules/schema-validator/schema-validator.service'
-import { MongoCollections, MONGO_DATABASE_NAME } from './modules/mongo-access/mongo.constants'
-import { Document, ObjectId } from 'bson'
+import { ObjectId } from 'bson'
+import { CustodianService } from './custodian.service'
+import { PostSpiderService } from './post-spider.service'
+import { RepoManager } from '../../mongo-access/services/repo-manager.service'
+import { SchemaValidatorService } from '../../schema-validator/services/schema-validator.service'
+import { ConfigService } from '../../../config.service'
+import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
+import { MongoCollections } from '../../mongo-access/mongo-access.model'
 
-export class Core {
-  ceramic: CeramicClient
+export class CoreService {
   db: Db
-  graphDocs: Collection<Document>
-  graphIndex: Collection<Document>
+  graphDocs: Collection<IndexedDocument>
+  graphIndex: Collection<IndexedNode>
   _threeId
-  custodianSystem
+  custodianSystem: CustodianService
   idx
-  postSpider
-  schemaValidator: SchemaValidator
-  mongoClient: MongoClient
+  postSpider: PostSpiderService
+  schemaValidator: SchemaValidatorService
 
-  constructor(ceramic: CeramicClient, mongo: MongoClient) {
-    this.ceramic = ceramic
-    this.mongoClient = mongo
-    this.schemaValidator = new SchemaValidator(this.ceramic, this.mongoClient)
+  constructor(private readonly ceramic: CeramicClient, private readonly mongoClient: MongoClient) {
+    const repoManager = new RepoManager(mongoClient)
+    this.schemaValidator = new SchemaValidatorService(this.ceramic, repoManager)
   }
 
   /**
    * Compiles graph index from list of stored graph docs.
    */
   async indexRefs() {
-    const out = await this.graphDocs
+    const storedDocs = await this.graphDocs
       .find({
-        parent_id: null,
+        parentId: null,
       })
       .toArray()
-    const outObj = {}
-    const outArray = []
-    for (const arg of out) {
-      const argId = arg.id || arg._id
-      const output = (
+
+    const childDocArray = []
+
+    for (const doc of storedDocs) {
+      // Q for Vaultec - do we need to fall back on doc._id since streamId is required?
+      //       const docId = doc.streamId || doc._id
+
+      const childDocs = (
         await this.graphDocs
           .find({
-            parent_id: arg.id,
+            parentId: doc.id,
           })
           .toArray()
-      ).map((e) => e.id || e._id)
+      ).map((child) => child.id)
 
-      outObj[argId] = output
-      outArray.push({
-        id: argId,
-        children: output,
+      // Same question as above
+      //       ).map((child) => child.streamId || child._id)
+
+      childDocArray.push({
+        id: doc.id,
+        children: childDocs,
         expiration: null,
       })
-      if (await this.graphIndex.findOne({ _id: arg.id })) {
+
+      if (await this.graphIndex.findOne({ id: doc.id })) {
         await this.graphIndex.findOneAndUpdate(
-          { _id: arg.id },
+          { id: doc.id },
           {
             $set: {
-              children: outArray,
+              children: childDocArray,
             },
           },
         )
       } else {
         await this.graphIndex.insertOne({
-          _id: arg.id,
-          children: output,
+          _id: new ObjectId(),
+          id: doc.id,
+          children: childDocs,
           expiration: null,
           custodian_nodes: [],
         })
@@ -85,7 +92,7 @@ export class Core {
    */
   async getChildren(id) {
     const docs = this.graphDocs.find({
-      parent_id: id,
+      parentId: id,
     })
 
     console.log(docs)
@@ -115,7 +122,7 @@ export class Core {
     )
     await this.graphDocs.insertOne({
       _id: new ObjectId(permlink),
-      streamId: output.id.toUrl(),
+      id: output.id.toUrl(),
       content,
       expire: null,
       updated_at: new Date(),
@@ -131,16 +138,14 @@ export class Core {
    * @returns
    */
   async getPost(streamId) {
-    const cachedDoc = await this.graphDocs.findOne({
-      streamId,
-    })
+    const cachedDoc = await this.graphDocs.findOne({ id: streamId })
     if (cachedDoc) {
       return cachedDoc.content
     } else {
       const tileDoc = await TileDocument.load(this.ceramic, streamId)
 
       await this.graphDocs.insertOne({
-        streamId,
+        id: streamId,
         content: tileDoc.content,
         expire: null,
         updated_at: new Date(),
@@ -151,9 +156,9 @@ export class Core {
   }
 
   async start() {
-    this.db = this.mongoClient.db(MONGO_DATABASE_NAME)
+    this.db = this.mongoClient.db(ConfigService.getConfig().mongoHost)
 
-    this.graphDocs = this.db.collection(MongoCollections.GraphDocs)
+    this.graphDocs = this.db.collection(MongoCollections.IndexedDocs)
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
 
     this._threeId = await ThreeIdProvider.create({
@@ -181,9 +186,9 @@ export class Core {
       ceramic: this.ceramic,
     })
 
-    this.custodianSystem = new CustodianSystem(this)
+    this.custodianSystem = new CustodianService(this)
     await this.custodianSystem.start()
-    this.postSpider = new postSpider(this)
+    this.postSpider = new PostSpiderService(this)
     await this.postSpider.start()
   }
 }

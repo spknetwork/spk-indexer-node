@@ -39,7 +39,7 @@ module.exports = {
     '@typescript-eslint/no-misused-promises': 'warn',
     '@typescript-eslint/ban-types': 'warn',
     '@typescript-eslint/no-non-null-assertion': 'warn',
-    '@typescript-eslint/unbound-method': 'warn',
+    '@typescript-eslint/unbound-method': 'off',
     'prefer-const': 'warn',
     '@typescript-eslint/no-this-alias': 'warn',
     'no-async-promise-executor': 'warn',

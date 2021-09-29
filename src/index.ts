@@ -1,17 +1,17 @@
 import CeramicHTTP from '@ceramicnetwork/http-client'
 import { MongoClient } from 'mongodb'
+import { ConfigService } from './config.service'
 
 import { CoreService } from './modules/graph-indexer/services/core.service'
-import { MONGO_HOST } from './modules/mongo-access/mongo.constants'
 
 const NETWORK_ID = '/spk.network/testnet-dev' // Future use for network isolation
 
 async function startup(): Promise<void> {
   // init ceramic
-  const ceramic = new CeramicHTTP('https://ceramic-clay.3boxlabs.com') //Using the public node for now.
+  const ceramic = new CeramicHTTP(ConfigService.getConfig().ceramicHost) //Using the public node for now.
 
   // init mongo
-  const url = `mongodb://${MONGO_HOST}`
+  const url = `mongodb://${ConfigService.getConfig().mongoHost}`
   const mongo = new MongoClient(url)
   await mongo.connect()
   console.log('Connected successfully to mongo')

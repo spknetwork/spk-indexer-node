@@ -2,7 +2,7 @@ import { StreamID } from '@ceramicnetwork/streamid'
 import IPFSHTTP from 'ipfs-http-client'
 import NodeSchedule from 'node-schedule'
 
-import { decode, encode } from '../utils/frame-codec.utils'
+import { decode, encode } from '../frame-codec.utils'
 
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 

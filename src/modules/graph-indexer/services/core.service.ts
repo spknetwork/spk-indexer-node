@@ -7,16 +7,16 @@ import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver'
 import { DID } from 'dids'
 import base64url from 'base64url'
 import { IDX } from '@ceramicstudio/idx'
-import { SchemaValidator } from '../../schema-validator/services/schema-validator.service'
-import { MongoCollections, MONGO_DATABASE_NAME } from '../../mongo-access/mongo.constants'
 import { ObjectId } from 'bson'
 import { CustodianService } from './custodian.service'
 import { PostSpiderService } from './post-spider.service'
-import { IndexedDocument } from '../models/indexed-document.model'
-import { IndexedNode } from '../models/indexed-node.model'
+import { RepoManager } from '../../mongo-access/services/repo-manager.service'
+import { SchemaValidatorService } from '../../schema-validator/services/schema-validator.service'
+import { ConfigService } from '../../../config.service'
+import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
+import { MongoCollections } from '../../mongo-access/mongo-access.model'
 
 export class CoreService {
-  ceramic: CeramicClient
   db: Db
   graphDocs: Collection<IndexedDocument>
   graphIndex: Collection<IndexedNode>
@@ -24,13 +24,11 @@ export class CoreService {
   custodianSystem: CustodianService
   idx
   postSpider: PostSpiderService
-  schemaValidator: SchemaValidator
-  mongoClient: MongoClient
+  schemaValidator: SchemaValidatorService
 
-  constructor(ceramic: CeramicClient, mongo: MongoClient) {
-    this.ceramic = ceramic
-    this.mongoClient = mongo
-    this.schemaValidator = new SchemaValidator(this.ceramic, this.mongoClient)
+  constructor(private readonly ceramic: CeramicClient, private readonly mongoClient: MongoClient) {
+    const repoManager = new RepoManager(mongoClient)
+    this.schemaValidator = new SchemaValidatorService(this.ceramic, repoManager)
   }
 
   /**
@@ -52,23 +50,23 @@ export class CoreService {
       const childDocs = (
         await this.graphDocs
           .find({
-            parentId: doc.streamId,
+            parentId: doc.id,
           })
           .toArray()
-      ).map((child) => child.streamId)
+      ).map((child) => child.id)
 
       // Same question as above
       //       ).map((child) => child.streamId || child._id)
 
       childDocArray.push({
-        id: doc.streamId,
+        id: doc.id,
         children: childDocs,
         expiration: null,
       })
 
-      if (await this.graphIndex.findOne({ streamId: doc.streamId })) {
+      if (await this.graphIndex.findOne({ id: doc.id })) {
         await this.graphIndex.findOneAndUpdate(
-          { streamId: doc.streamId },
+          { id: doc.id },
           {
             $set: {
               children: childDocArray,
@@ -78,7 +76,7 @@ export class CoreService {
       } else {
         await this.graphIndex.insertOne({
           _id: new ObjectId(),
-          streamId: doc.streamId,
+          id: doc.id,
           children: childDocs,
           expiration: null,
           custodian_nodes: [],
@@ -124,7 +122,7 @@ export class CoreService {
     )
     await this.graphDocs.insertOne({
       _id: new ObjectId(permlink),
-      streamId: output.id.toUrl(),
+      id: output.id.toUrl(),
       content,
       expire: null,
       updated_at: new Date(),
@@ -140,16 +138,14 @@ export class CoreService {
    * @returns
    */
   async getPost(streamId) {
-    const cachedDoc = await this.graphDocs.findOne({
-      streamId: streamId,
-    })
+    const cachedDoc = await this.graphDocs.findOne({ id: streamId })
     if (cachedDoc) {
       return cachedDoc.content
     } else {
       const tileDoc = await TileDocument.load(this.ceramic, streamId)
 
       await this.graphDocs.insertOne({
-        streamId: streamId,
+        id: streamId,
         content: tileDoc.content,
         expire: null,
         updated_at: new Date(),
@@ -160,9 +156,9 @@ export class CoreService {
   }
 
   async start() {
-    this.db = this.mongoClient.db(MONGO_DATABASE_NAME)
+    this.db = this.mongoClient.db(ConfigService.getConfig().mongoHost)
 
-    this.graphDocs = this.db.collection(MongoCollections.GraphDocs)
+    this.graphDocs = this.db.collection(MongoCollections.IndexedDocs)
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
 
     this._threeId = await ThreeIdProvider.create({

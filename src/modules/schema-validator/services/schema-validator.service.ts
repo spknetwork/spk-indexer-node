@@ -1,23 +1,55 @@
 import { CeramicClient } from '@ceramicnetwork/http-client'
-import { IndexedDocument } from '../../graph-indexer/models/indexed-document.model'
-import { NotImplementedException } from '../../../common/exceptions/not-implemented.exception'
-import { MongoService } from '../../mongo-access/mongo.service'
-import { MongoClient } from 'mongodb'
+import { RepoManager } from '../../mongo-access/services/repo-manager.service'
+import { TileDocument } from '@ceramicnetwork/stream-tile'
+import Ajv from 'ajv'
+import { StoredSchema } from '../schema-validator.model'
+import { MongoRepository } from '../../mongo-access/mongo-repository.generic'
+import addFormats from 'ajv-formats'
+import { NotFoundException, NotImplementedException } from '../../../common/indexer-app.exceptions'
+import { IndexedDocument } from '../../graph-indexer/graph-indexer.model'
 
-export class SchemaValidator {
-  ceramic: CeramicClient
-  mongoService: MongoService
-  constructor(ceramic: CeramicClient, mongoClient: MongoClient) {
-    this.ceramic = ceramic
-    this.mongoService = new MongoService(mongoClient)
+export class SchemaValidatorService {
+  private readonly schemas: MongoRepository<StoredSchema>
+  constructor(private readonly ceramic: CeramicClient, private readonly repoManager: RepoManager) {
+    this.schemas = repoManager.storedSchemas
   }
 
   /**
    * Registers schema with indexer
    */
   public async registerSchema(schemaStreamId: string): Promise<void> {
-    // TODO - register schema with mongo collection
-    throw new NotImplementedException()
+    // Get schema doc from ceramic
+    //     const schemaDoc = await TileDocument.load(this.ceramic, schemaStreamId)
+    const schemaDoc = await this.ceramic.loadStream<TileDocument>(schemaStreamId)
+    if (!schemaDoc) {
+      throw new NotFoundException(
+        `Could not find schema with stream ID ${schemaStreamId} in ceramic!`,
+      )
+    }
+
+    const ajv = new Ajv()
+    addFormats(ajv)
+    // Make sure the contents of the retrieved doc are a valid json schema by trying compilation with ajv
+    try {
+      ajv.compile(schemaDoc.state.content)
+    } catch (err) {
+      throw new Error(
+        `Error registering schema!  Contents of doc at streamID ${schemaStreamId} is not a valid JSON schema object! ${err.message}`,
+      )
+    }
+
+    // Make sure this schema is not already registered in the database
+    const existing = await this.repoManager.storedSchemas.findById(schemaStreamId)
+    if (existing) {
+      throw new Error(
+        `Schema with stream ID ${schemaStreamId} is already registered with the database!`,
+      )
+    }
+
+    await this.repoManager.storedSchemas.insertOne({
+      id: schemaStreamId,
+      schema: schemaDoc.content,
+    } as StoredSchema)
   }
 
   /**

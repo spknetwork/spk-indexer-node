@@ -156,7 +156,7 @@ export class CoreService {
   }
 
   async start() {
-    this.db = this.mongoClient.db(ConfigService.getConfig().mongoHost)
+    this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName);
 
     this.graphDocs = this.db.collection(MongoCollections.IndexedDocs)
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)

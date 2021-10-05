@@ -1,8 +1,10 @@
 import CeramicHTTP from '@ceramicnetwork/http-client'
 import { MongoClient } from 'mongodb'
 import { ConfigService } from './config.service'
+import IPFSHTTP from 'ipfs-http-client'
 
 import { CoreService } from './modules/graph-indexer/services/core.service'
+import { IndexerApiModule } from './modules/api/indexer-api.module'
 
 const NETWORK_ID = '/spk.network/testnet-dev' // Future use for network isolation
 
@@ -21,6 +23,11 @@ async function startup(): Promise<void> {
   await instance.postSpider.pullSingle(
     `did:3:kjzl6cwe1jw147v2fzxjvpbvjp87glksoi2p698t6bbhuv2cuc3vie7kcopvyfb`,
   )
+
+  // Start API
+  const ipfs = IPFSHTTP.create({ host: ConfigService.getConfig().ipfsHost })
+  const api = new IndexerApiModule(ipfs, ConfigService.getConfig().apiListenPort)
+  api.listen()
 }
 
 void startup()

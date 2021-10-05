@@ -154,6 +154,9 @@ export class CoreService {
         })
         .toArray()
     ).map((e) => e.id)
+    if ([].length === 0) {
+      return null
+    }
     const bloom = BloomFilter.from(items, 0.001)
     return bloom
   }

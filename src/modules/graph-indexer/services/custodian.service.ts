@@ -72,19 +72,25 @@ export class CustodianService {
   async receiveBloomAnnounce(payload, fromId) {
     console.log('receiving bloom announce')
     console.log(payload, fromId)
-    const bloomFilter = BloomFilter.fromJSON(JSON.parse(payload.bloom))
+    const parsedBloom = JSON.parse(payload.bloom)
+    const bloomFilter = parsedBloom ? BloomFilter.fromJSON(parsedBloom) : null
     console.log(bloomFilter)
     const arrayItems = await this.graphIndex
       .find({
         parent_id: payload.parent_id,
       })
       .toArray()
-    const output = []
-    for (const item of arrayItems) {
-      if (!bloomFilter.has(item.id)) {
-        console.log('has')
-        output.push(item.id)
+    let output = []
+    //If no bloomFilter exists, proceed to assume all entries are unknown to the requester
+    if (bloomFilter) {
+      for (const item of arrayItems) {
+        if (!bloomFilter.has(item.id)) {
+          console.log('has')
+          output.push(item.id)
+        }
       }
+    } else {
+      output = arrayItems.map((e) => e.id)
     }
     const msg = {
       type: messageTypes.CUS_RES_SUBGRAPH,
@@ -120,10 +126,11 @@ export class CustodianService {
     console.log('announcing bloom')
     const parent_id = 'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho'
     const bloomFilter = await this.self.createBloom(parent_id)
+    const compiledBloom = bloomFilter ? bloomFilter.saveAsJSON() : bloomFilter
     const msg = {
       type: messageTypes.CUS_ASK_SUBGRAPH,
       parent_id,
-      bloom: JSON.stringify(bloomFilter.saveAsJSON()),
+      bloom: JSON.stringify(compiledBloom),
     }
     console.log(Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC))
     const codedMessage = encode(msg)

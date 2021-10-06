@@ -27,7 +27,7 @@ export class CoreService {
   postSpider: PostSpiderService
   schemaValidator: SchemaValidatorService
 
-  constructor(private readonly ceramic: CeramicClient, private readonly mongoClient: MongoClient) {
+  constructor(readonly ceramic: CeramicClient, private readonly mongoClient: MongoClient) {
     const repoManager = new RepoManager(mongoClient)
     this.schemaValidator = new SchemaValidatorService(this.ceramic, repoManager)
   }

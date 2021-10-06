@@ -26,6 +26,7 @@
     "ipfs-core": "^0.11.1",
     "ipfs-http-client": "^52.0.5",
     "ipfs-pubsub-1on1": "^0.0.7",
+    "it-pushable": "^1.4.2",
     "json-schema": "^0.3.0",
     "mongodb": "^4.1.2",
     "node-schedule": "^2.0.0",

@@ -4,11 +4,14 @@ import { Collection } from 'mongodb'
 import NodeSchedule from 'node-schedule'
 import Path from 'path'
 import { BloomFilter } from 'bloom-filters'
+import EventEmitter from 'events'
+import Pushable from 'it-pushable'
 
 import { decode, encode } from '../frame-codec.utils'
 import { CSNode, IndexedNode } from '../graph-indexer.model'
 import { SUBChannels, messageTypes } from '../../peer-to-peer/p2p.model'
 import { CoreService } from './core.service'
+import { TileDocument } from '@ceramicnetwork/stream-tile'
 
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 
@@ -21,17 +24,24 @@ export class CustodianService {
   graphIndex: Collection<IndexedNode>
   graphCs: Collection<CSNode>
   asks: Set<string>
+  events: EventEmitter
   constructor(self) {
     this.self = self
 
     this.handleSub = this.handleSub.bind(this)
     this.announceCustodian = this.announceCustodian.bind(this)
-    this.receiveBloomAnnounce = this.receiveBloomAnnounce.bind(this)
+    this._receiveAnnounce = this._receiveAnnounce.bind(this)
     this.announceBloom = this.announceBloom.bind(this)
 
     this.asks = new Set()
+    this.events = new EventEmitter()
   }
-  async receiveAnnounce(payload, fromId) {
+  /**
+   * Receive custodian announcements from remote node.
+   * @param payload
+   * @param fromId
+   */
+  async _receiveAnnounce(payload, fromId) {
     console.log(payload, fromId)
     if (this.myPeerId === fromId) {
       console.warn('peerId is the same as local node')
@@ -69,12 +79,18 @@ export class CustodianService {
       }
     }
   }
-  async receiveBloomAnnounce(payload, fromId) {
-    console.log('receiving bloom announce')
-    console.log(payload, fromId)
+  /**
+   * Receive a bloom filter from a remote node.
+   * If the bloom filter lacks entries of the current locally stored data, then the local node will send out missing entities from it's internal subgraph.
+   * @todo: Prevent listening to bloom filter announcements if the node is not a custodian.
+   * @todo: Garbage collection
+   * @param payload
+   * @param fromId
+   */
+  async _receiveBloomAnnounce(payload, fromId) {
     const parsedBloom = JSON.parse(payload.bloom)
     const bloomFilter = parsedBloom ? BloomFilter.fromJSON(parsedBloom) : null
-    console.log(bloomFilter)
+
     const arrayItems = await this.graphIndex
       .find({
         parent_id: payload.parent_id,
@@ -85,7 +101,6 @@ export class CustodianService {
     if (bloomFilter) {
       for (const item of arrayItems) {
         if (!bloomFilter.has(item.id)) {
-          console.log('has')
           output.push(item.id)
         }
       }
@@ -94,6 +109,7 @@ export class CustodianService {
     }
     const msg = {
       type: messageTypes.CUS_RES_SUBGRAPH,
+      parent_id: payload.parent_id,
       content: {
         sg: output,
       },
@@ -104,6 +120,21 @@ export class CustodianService {
       encode(msg),
     )
   }
+  /**
+   * Handles receiving subgraph from remote node, runs a filter, then converts the request into an internal event emission.
+   * @param payload
+   * @param fromId
+   */
+  async _receiveSubgraph(payload, fromId: string) {
+    if (this.asks.has(payload.parent_id)) {
+      void this.events.emit('remote.recv_subgraph', payload.content.sg, payload.parent_id)
+    }
+  }
+  /**
+   * Announces custodianship of locally stored documents.
+   * This function mainly does not important in the overall architecture. However, eventually routing will be necessary for maximum scalability.
+   * @todo: Be custodian of only pinned documents and improve handling of when should a node become a custodian or not
+   */
   async announceCustodian() {
     const out = (
       await this.self.graphDocs
@@ -122,9 +153,12 @@ export class CustodianService {
     const codedMessage = encode(msg)
     await this.ipfs.pubsub.publish(IPFS_PUBSUB_TOPIC, codedMessage)
   }
-  async announceBloom() {
-    console.log('announcing bloom')
-    const parent_id = 'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho'
+  /**
+   * Announces local bloom filter to remote nodes
+   * Other nodes will respond with the missing entries in your bloom filter
+   * @param parent_id StreamId
+   */
+  async announceBloom(parent_id: string) {
     const bloomFilter = await this.self.createBloom(parent_id)
     const compiledBloom = bloomFilter ? bloomFilter.saveAsJSON() : bloomFilter
     const msg = {
@@ -139,6 +173,7 @@ export class CustodianService {
       codedMessage,
     )
   }
+
   handleSub(message) {
     let msgObj
     try {
@@ -146,14 +181,102 @@ export class CustodianService {
     } catch (ex) {
       return
     }
-    console.log('receiving RDM' + msgObj.type)
     if (msgObj.type === CUS_ANNOUNCE) {
-      void this.receiveAnnounce(msgObj, message.from)
+      void this._receiveAnnounce(msgObj, message.from)
     } else if (msgObj.type === messageTypes.CUS_ASK_SUBGRAPH) {
-      void this.receiveBloomAnnounce(msgObj, message.from)
+      void this._receiveBloomAnnounce(msgObj, message.from)
+    } else if (msgObj.type === messageTypes.CUS_RES_SUBGRAPH) {
+      void this._receiveSubgraph(msgObj, message.from)
     }
   }
-  async *queryChildren(id: string) {}
+  /**
+   * This function transverses the first levle of the subgraph and stores each child entry
+   * @param id StreamId
+   */
+  async transverseChildren(id: string) {
+    const consumer = this.queryChildrenRemote(id)
+    for await (const itemId of consumer) {
+      const data = await TileDocument.load(this.self.ceramic, itemId as string)
+
+      //Note: data.content is the first version of a document, data.next is the recent state.
+      const { next, content } = data.state
+      const parent_id = content.parent_id
+      if (parent_id === id) {
+        const currentDoc = await this.graphIndex.findOne({})
+        if (currentDoc) {
+          await this.graphIndex.findOneAndUpdate(
+            {
+              _id: currentDoc._id,
+            },
+            {
+              $set: {
+                last_pinged: new Date(),
+              },
+            },
+          )
+        } else {
+          await this.graphIndex.insertOne({
+            id: itemId as string,
+            parent_id,
+            expiration: null,
+            first_seen: new Date(),
+            last_pinged: new Date(),
+          })
+        }
+      } else {
+        //Do blacklisting/caching of validation result
+      }
+    }
+  }
+  /**
+   * Queries remmote node for subgraph data
+   * This function does not store any data in the mongodb database. Only a small amount of data for dedop and the ask list
+   * Timeout is 120s
+   * @param id StreamId
+   */
+  async *queryChildrenRemote(id: string) {
+    const dedup = new Set()
+
+    this.asks.add(id)
+
+    await this.announceBloom(id)
+    const source = Pushable()
+    const func = (subgraphInfo, parent_id) => {
+      if (parent_id === id) {
+        for (const id of subgraphInfo) {
+          source.push(id)
+        }
+      }
+    }
+    this.events.on('remote.recv_subgraph', func)
+    setTimeout(() => {
+      this.events.off('remote.recv_subgraph', func)
+      source.end()
+      this.asks.delete(id)
+    }, 120 * 1000)
+
+    for await (const id of source) {
+      if (!dedup.has(id)) {
+        dedup.add(id)
+        yield id
+      }
+    }
+  }
+  /**
+   * Retrieves list of child entities in a subgraph from the local database only.
+   * This does not query any remote nodes.
+   * @param id StreamId
+   * @returns {Array<string>}
+   */
+  async queryChildren(id: string) {
+    return (
+      await this.graphIndex
+        .find({
+          parent_id: id,
+        })
+        .toArray()
+    ).map((e) => e.id)
+  }
   async start() {
     this.graphIndex = this.self.db.collection('graph.index')
     this.graphCs = this.self.db.collection('graph.cs')
@@ -166,10 +289,20 @@ export class CustodianService {
       this.handleSub,
     )
     NodeSchedule.scheduleJob('* * * * *', this.announceCustodian)
-    NodeSchedule.scheduleJob('* * * * *', this.announceBloom)
+    NodeSchedule.scheduleJob('* * * * *', async () => {
+      /*const consumer = this.queryChildrenRemote(
+        'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',
+      )
+      for await (const item of consumer) {
+        console.log(item)
+      }*/
+      void (await this.transverseChildren(
+        'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',
+      ))
+      void this.announceBloom('kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho')
+    })
   }
   async stop() {
-    console.log('system is stopping')
     void this.ipfs.pubsub.unsubscribe(IPFS_PUBSUB_TOPIC, this.handleSub)
   }
 }

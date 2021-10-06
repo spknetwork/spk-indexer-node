@@ -55,6 +55,8 @@ export class DebugApiController {
       const bwStatIterable = ipfsContainer.ipfs.stats.bw()
       const bwStats: any[] = []
       for await (const stat of bwStatIterable) {
+        stat.totalIn = stat.totalIn.toString() as any
+        stat.totalOut = stat.totalOut.toString() as any
         bwStats.push(stat)
       }
 

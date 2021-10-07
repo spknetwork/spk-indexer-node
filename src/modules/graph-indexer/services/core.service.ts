@@ -15,6 +15,7 @@ import { SchemaValidatorService } from '../../schema-validator/services/schema-v
 import { ConfigService } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
+import { BloomFilter } from 'bloom-filters'
 
 export class CoreService {
   db: Db
@@ -26,7 +27,7 @@ export class CoreService {
   postSpider: PostSpiderService
   schemaValidator: SchemaValidatorService
 
-  constructor(private readonly ceramic: CeramicClient, private readonly mongoClient: MongoClient) {
+  constructor(readonly ceramic: CeramicClient, private readonly mongoClient: MongoClient) {
     const repoManager = new RepoManager(mongoClient)
     this.schemaValidator = new SchemaValidatorService(this.ceramic, repoManager)
   }
@@ -37,50 +38,37 @@ export class CoreService {
   async indexRefs() {
     const storedDocs = await this.graphDocs
       .find({
-        parentId: null,
+        parent_id: null,
       })
       .toArray()
 
-    const childDocArray = []
-
     for (const doc of storedDocs) {
-      // Q for Vaultec - do we need to fall back on doc._id since streamId is required?
-      //       const docId = doc.streamId || doc._id
-
-      const childDocs = (
-        await this.graphDocs
-          .find({
-            parentId: doc.id,
-          })
-          .toArray()
-      ).map((child) => child.id)
-
-      // Same question as above
-      //       ).map((child) => child.streamId || child._id)
-
-      childDocArray.push({
-        id: doc.id,
-        children: childDocs,
-        expiration: null,
-      })
-
-      if (await this.graphIndex.findOne({ id: doc.id })) {
-        await this.graphIndex.findOneAndUpdate(
-          { id: doc.id },
-          {
-            $set: {
-              children: childDocArray,
-            },
-          },
-        )
-      } else {
-        await this.graphIndex.insertOne({
-          _id: new ObjectId(),
-          id: doc.id,
-          children: childDocs,
-          expiration: null,
-          custodian_nodes: [],
+      const childDocs = await this.graphDocs
+        .find({
+          parent_id: doc.id,
         })
+        .toArray()
+      for (const childDoc of childDocs) {
+        if (await this.graphIndex.findOne({ id: childDoc.id })) {
+          await this.graphIndex.findOneAndUpdate(
+            { id: childDoc.id },
+            {
+              $set: {
+                last_pinged: new Date(),
+              },
+            },
+          )
+        } else {
+          await this.graphIndex.insertOne({
+            _id: new ObjectId(),
+            id: childDoc.id,
+            parent_id: doc.id,
+            expiration: null,
+            first_seen: new Date(),
+            last_pinged: new Date(),
+            last_pulled: new Date(),
+          })
+        }
       }
     }
   }
@@ -92,7 +80,7 @@ export class CoreService {
    */
   async getChildren(id) {
     const docs = this.graphDocs.find({
-      parentId: id,
+      parent_id: id,
     })
 
     console.log(docs)
@@ -108,7 +96,7 @@ export class CoreService {
    * @param {Object} content
    * @returns
    */
-  async createPost(content) {
+  async createPost(content, parent_id: string) {
     const permlink = base64url.encode(Crypto.randomBytes(6))
     console.log(permlink)
     const output = await TileDocument.create(
@@ -121,14 +109,16 @@ export class CoreService {
       { anchor: false, publish: false },
     )
     await this.graphDocs.insertOne({
-      _id: new ObjectId(permlink),
-      id: output.id.toUrl(),
+      id: output.id.toString(),
       content,
       expire: null,
-      updated_at: new Date(),
-      last_checked: new Date(),
+      first_seen: new Date(),
+      last_updated: new Date(),
+      last_pinged: new Date(),
+      pinned: true,
+      parent_id,
     })
-    return output.id.toUrl()
+    return output.id.toString()
   }
 
   /**
@@ -148,15 +138,31 @@ export class CoreService {
         id: streamId,
         content: tileDoc.content,
         expire: null,
-        updated_at: new Date(),
-        last_checked: new Date(),
+        first_seen: new Date(),
+        last_updated: new Date(),
+        last_pinged: new Date(),
+        pinned: false,
       })
       return tileDoc.content
     }
   }
+  async createBloom(parent_id: string) {
+    const items = (
+      await this.graphIndex
+        .find({
+          parent_id,
+        })
+        .toArray()
+    ).map((e) => e.id)
+    if ([].length === 0) {
+      return null
+    }
+    const bloom = BloomFilter.from(items, 0.001)
+    return bloom
+  }
 
   async start() {
-    this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName);
+    this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
 
     this.graphDocs = this.db.collection(MongoCollections.IndexedDocs)
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
@@ -190,5 +196,13 @@ export class CoreService {
     await this.custodianSystem.start()
     this.postSpider = new PostSpiderService(this)
     await this.postSpider.start()
+    //void this.indexRefs()
+    /*void this.createPost(
+      {
+        description: 'test',
+      },
+      'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',
+    )*/
+    void this.createBloom('kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho')
   }
 }

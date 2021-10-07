@@ -42,7 +42,6 @@ export class CustodianService {
    * @param fromId
    */
   async _receiveAnnounce(payload, fromId) {
-    console.log(payload, fromId)
     if (this.myPeerId === fromId) {
       console.warn('peerId is the same as local node')
     }
@@ -114,7 +113,6 @@ export class CustodianService {
         sg: output,
       },
     }
-    console.log(msg)
     void this.ipfs.pubsub.publish(
       Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
       encode(msg),
@@ -166,7 +164,6 @@ export class CustodianService {
       parent_id,
       bloom: JSON.stringify(compiledBloom),
     }
-    console.log(Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC))
     const codedMessage = encode(msg)
     await this.ipfs.pubsub.publish(
       Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
@@ -197,12 +194,14 @@ export class CustodianService {
     const consumer = this.queryChildrenRemote(id)
     for await (const itemId of consumer) {
       const data = await TileDocument.load(this.self.ceramic, itemId as string)
-
       //Note: data.content is the first version of a document, data.next is the recent state.
       const { next, content } = data.state
       const parent_id = content.parent_id
       if (parent_id === id) {
-        const currentDoc = await this.graphIndex.findOne({})
+        const currentDoc = await this.graphIndex.findOne({
+          id: itemId,
+          parent_id: id,
+        })
         if (currentDoc) {
           await this.graphIndex.findOneAndUpdate(
             {

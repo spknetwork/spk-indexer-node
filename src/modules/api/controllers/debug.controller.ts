@@ -1,8 +1,6 @@
 import { Controller, Get, InternalServerErrorException } from '@nestjs/common'
-import PeerId from 'peer-id'
 import { ipfsContainer } from '../indexer-api.module'
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
-
 export interface DebugSummaryInfo {
   /**
    * Number of connected peer
@@ -37,7 +35,15 @@ export class DebugApiController {
     try {
       const peers = await ipfsContainer.ipfs.swarm.peers()
       const selfId = await ipfsContainer.ipfs.id()
-      const pubsubPeers = await ipfsContainer.ipfs.pubsub.peers(IPFS_PUBSUB_TOPIC)
+
+      const pubsubPeersByTopic: Record<string, string[]> = {}
+      // TODO - get these topics somewhere other than a local constant (i.e. either get them dynamically or get them from a common constants file)
+      const peerTopics = [IPFS_PUBSUB_TOPIC]
+      for (const topic of peerTopics) {
+        const peersForTopic = await ipfsContainer.ipfs.pubsub.peers(topic)
+        pubsubPeersByTopic[topic] = peersForTopic
+      }
+
       const bwStatIterable = ipfsContainer.ipfs.stats.bw()
       const bwStats: any[] = []
       for await (const stat of bwStatIterable) {
@@ -50,7 +56,7 @@ export class DebugApiController {
         peerCount: peers.length,
         peerId: selfId.id,
         peerInfo: selfId.addresses,
-        pubsubPeers: pubsubPeers,
+        pubsubPeers: pubsubPeersByTopic,
         bandwidthStats: bwStats,
       }
 
@@ -64,8 +70,8 @@ export class DebugApiController {
   @Get('/peerlist')
   async getPeerList() {
     try {
-      const info = await ipfsContainer.ipfs.swarm.peers()
-      const peerAddresses = info.map((item) => PeerId.parse(item.peer).id)
+      const peers = await ipfsContainer.ipfs.swarm.peers()
+      const peerAddresses = peers.map((item) => item.peer)
 
       return peerAddresses
     } catch (err) {

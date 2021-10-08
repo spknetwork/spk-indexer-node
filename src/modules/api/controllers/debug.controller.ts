@@ -1,5 +1,5 @@
 import { Controller, Get, InternalServerErrorException } from '@nestjs/common'
-import { ipfsContainer } from '../indexer-api.module'
+import { indexerContainer, ipfsContainer } from '../indexer-api.module'
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 export interface DebugSummaryInfo {
   /**
@@ -33,18 +33,18 @@ export class DebugApiController {
   @Get('')
   async getDebugSummaryInfo() {
     try {
-      const peers = await ipfsContainer.ipfs.swarm.peers()
-      const selfId = await ipfsContainer.ipfs.id()
+      const peers = await ipfsContainer.self.swarm.peers()
+      const selfId = await ipfsContainer.self.id()
 
       const pubsubPeersByTopic: Record<string, string[]> = {}
       // TODO - get these topics somewhere other than a local constant (i.e. either get them dynamically or get them from a common constants file)
       const peerTopics = [IPFS_PUBSUB_TOPIC]
       for (const topic of peerTopics) {
-        const peersForTopic = await ipfsContainer.ipfs.pubsub.peers(topic)
+        const peersForTopic = await ipfsContainer.self.pubsub.peers(topic)
         pubsubPeersByTopic[topic] = peersForTopic
       }
 
-      const bwStatIterable = ipfsContainer.ipfs.stats.bw()
+      const bwStatIterable = ipfsContainer.self.stats.bw()
       const bwStats: any[] = []
       for await (const stat of bwStatIterable) {
         stat.totalIn = stat.totalIn.toString() as any
@@ -70,12 +70,29 @@ export class DebugApiController {
   @Get('/peerlist')
   async getPeerList() {
     try {
-      const peers = await ipfsContainer.ipfs.swarm.peers()
+      const peers = await ipfsContainer.self.swarm.peers()
       const peerAddresses = peers.map((item) => item.peer)
 
       return peerAddresses
     } catch (err) {
       throw new InternalServerErrorException(`Error getting peer list ${err.message}`)
+    }
+  }
+
+  @Get('/dumpdatabase')
+  async dumpDatabase() {
+    try {
+      const docs = await indexerContainer.self.getAllDocuments()
+      const indexes = await indexerContainer.self.getAllIndexes()
+
+      return {
+        docsCount: docs.length,
+        indexesCount: indexes.length,
+        docs,
+        indexes,
+      }
+    } catch (err) {
+      throw new InternalServerErrorException(`Error dumping database ${err.message}`)
     }
   }
 }

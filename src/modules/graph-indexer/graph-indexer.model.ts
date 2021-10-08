@@ -30,6 +30,7 @@ export class IndexedDocument implements SpkCollectionItem {
   last_accessed?: Date //Maybe a bit too IO intensive?
   versionId?: string
   pinned: boolean
+  creator_id?: string
 }
 
 /**

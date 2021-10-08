@@ -102,7 +102,7 @@ export class CoreService {
     const output = await TileDocument.create(
       this.ceramic,
       {
-        permlink,
+        parent_id: parent_id,
         content,
       },
       { controllers: [this.ceramic.did.id] },
@@ -133,17 +133,34 @@ export class CoreService {
       return cachedDoc.content
     } else {
       const tileDoc = await TileDocument.load(this.ceramic, streamId)
-
+      const creator_id = tileDoc.metadata.controllers[0]
+      const nextContent = tileDoc.content
+      console.log(tileDoc.state.content)
       await this.graphDocs.insertOne({
         id: streamId,
-        content: tileDoc.content,
+        parent_id: tileDoc.state.content.parent_id,
+        content: nextContent,
         expire: null,
         first_seen: new Date(),
         last_updated: new Date(),
         last_pinged: new Date(),
+        versionId: tileDoc.tip.toString(),
+        creator_id,
         pinned: false,
       })
       return tileDoc.content
+    }
+  }
+  async *getDiscussion(id: string) {
+    void this.custodianSystem.transverseChildren(id)
+    const data = this.graphIndex.find({
+      parent_id: id,
+    })
+    for await (const dataInfo of data) {
+      const data = await this.getPost(dataInfo.id)
+      yield {
+        content: data,
+      }
     }
   }
   async createBloom(parent_id: string) {
@@ -195,14 +212,15 @@ export class CoreService {
     this.custodianSystem = new CustodianService(this)
     await this.custodianSystem.start()
     this.postSpider = new PostSpiderService(this)
-    await this.postSpider.start()
+    //;(await this.postSpider.start()) *
     //void this.indexRefs()
     /*void this.createPost(
       {
-        description: 'test',
+        title: 'very cool! Title! Yes!',
+        description: 'Another amazing test post!',
       },
       'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',
     )*/
-    void this.createBloom('kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho')
+    //void this.createBloom('kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho')
   }
 }

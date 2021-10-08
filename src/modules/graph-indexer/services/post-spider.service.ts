@@ -1,15 +1,16 @@
 import NodeSchedule from 'node-schedule'
 import StreamID from '@ceramicnetwork/streamid'
+import { Collection } from 'mongodb'
 
 export class PostSpiderService {
-  col
+  col: Collection
   constructor(private readonly self) {
     this.self = self
 
     this.pull = this.pull.bind(this)
   }
   async pull() {
-    const following = (await (await this.col.find({})).toArray()).map((e) => e.did)
+    const following = (await this.col.find({}).toArray()).map((e) => e.did)
     console.log(following)
     //This will be used for pulling content into indexing layer... TBD
     //Need schema to be developed for very basic social media posts on the network.
@@ -36,7 +37,7 @@ export class PostSpiderService {
     }
   }
   async ls() {
-    const following = (await (await this.col.find({})).toArray()).map((e) => e.did)
+    const following = (await this.col.find({}).toArray()).map((e) => e.did)
     return following
   }
   async rm(did: string) {
@@ -45,7 +46,7 @@ export class PostSpiderService {
     })
   }
   async start() {
-    this.col = this.self.db.collection('spider.following')
+    this.col = this.self.db.collection('post-spider')
     NodeSchedule.scheduleJob('* * * * *', this.pull)
   }
 }

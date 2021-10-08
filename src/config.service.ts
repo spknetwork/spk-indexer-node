@@ -18,7 +18,7 @@ export class ConfigService {
         )
       }
     } else {
-      apiListenPort = 3000
+      apiListenPort = 4567
     }
 
     return {

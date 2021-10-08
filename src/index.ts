@@ -26,7 +26,7 @@ async function startup(): Promise<void> {
 
   // Start API
   const ipfs = IPFSHTTP.create({ host: ConfigService.getConfig().ipfsHost })
-  const api = new IndexerApiModule(ipfs, ConfigService.getConfig().apiListenPort)
+  const api = new IndexerApiModule(ipfs, ConfigService.getConfig().apiListenPort, instance)
   await api.listen()
 }
 

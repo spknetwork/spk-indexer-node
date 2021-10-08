@@ -2,15 +2,18 @@ import { Module } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { IPFSHTTPClient } from 'ipfs-http-client'
+import { CoreService } from '../graph-indexer/services/core.service'
 import { DebugApiController } from './controllers/debug.controller'
+import { IndexerApiController } from './controllers/indexer.controller'
 
 export const ipfsContainer: { ipfs: IPFSHTTPClient } = {} as any
+export const indexerContainer: { self: CoreService } = {} as any
 
 export const INDEXER_API_BASE_URL = '/api/v0/node'
 
 @Module({
   imports: [],
-  controllers: [DebugApiController],
+  controllers: [DebugApiController, IndexerApiController],
   providers: [],
 })
 class ControllerModule {}
@@ -19,8 +22,13 @@ class ControllerModule {}
  * see api requirements here https://github.com/3speaknetwork/research/discussions/3
  */
 export class IndexerApiModule {
-  constructor(private readonly ipfs: IPFSHTTPClient, private readonly listenPort: number) {
+  constructor(
+    private readonly ipfs: IPFSHTTPClient,
+    private readonly listenPort: number,
+    private readonly self,
+  ) {
     ipfsContainer.ipfs = ipfs
+    indexerContainer.self = self
   }
 
   public async listen() {

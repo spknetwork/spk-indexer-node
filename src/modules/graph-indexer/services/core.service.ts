@@ -1,11 +1,9 @@
 import ThreeIdProvider from '3id-did-provider'
 import { CeramicClient } from '@ceramicnetwork/http-client'
-import Crypto from 'crypto'
 import { MongoClient, Db, Collection } from 'mongodb'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver'
 import { DID } from 'dids'
-import base64url from 'base64url'
 import { IDX } from '@ceramicstudio/idx'
 import { ObjectId } from 'bson'
 import { CustodianService } from './custodian.service'
@@ -93,24 +91,24 @@ export class CoreService {
 
   /**
    * Creates a post on the indexer.
+   * @todo Move API to client side only writes. Refactor current (centralized) test API.
    * @param {Object} content
    * @returns
    */
   async createPost(content, parent_id: string) {
-    const permlink = base64url.encode(Crypto.randomBytes(6))
-    console.log(permlink)
     const output = await TileDocument.create(
       this.ceramic,
       {
         parent_id: parent_id,
         content,
       },
-      { controllers: [this.ceramic.did.id] },
-      { anchor: false, publish: false },
+      { tags: ['spk_network'], controllers: [this.ceramic.did.id] },
+      { anchor: true, publish: false },
     )
     await this.graphDocs.insertOne({
       id: output.id.toString(),
       content,
+      created_at: new Date(),
       expire: null,
       first_seen: new Date(),
       last_updated: new Date(),
@@ -122,6 +120,39 @@ export class CoreService {
   }
 
   /**
+   * @todo Move API to client side only writes. Refactor current (centralized) test API.
+   * @param streamId
+   * @param content
+   * @returns
+   */
+  async updatePost(streamId, content) {
+    const tileDoc = await TileDocument.load(this.ceramic, streamId)
+    const curDoc = tileDoc.content
+    curDoc['content'] = content
+    await tileDoc.update(curDoc, null, { anchor: true })
+
+    await this.graphDocs.findOneAndUpdate(
+      {
+        id: tileDoc.id.toString(),
+      },
+      {
+        $set: {
+          versionId: tileDoc.tip.toString(),
+          last_updated: new Date(),
+          last_pinged: new Date(),
+        },
+      },
+    )
+    return content
+  }
+  /**
+   * Announces a BOGON to the network and deletes the post from the database
+   * @todo Move API to client side only writes. Refactor current (centralized) test API.
+   * @param streamId
+   */
+  async deletePost(streamId) {}
+
+  /**
    * Retrives a post from the indexer.
    * Fetches the post from the network if unavailable.
    * @param {String} streamId
@@ -130,16 +161,30 @@ export class CoreService {
   async getPost(streamId) {
     const cachedDoc = await this.graphDocs.findOne({ id: streamId })
     if (cachedDoc) {
-      return cachedDoc.content
+      return {
+        creator_id: cachedDoc.creator_id,
+        streamId: cachedDoc.id,
+        parent_id: cachedDoc.parent_id,
+        content: cachedDoc.content,
+      }
     } else {
       const tileDoc = await TileDocument.load(this.ceramic, streamId)
       const creator_id = tileDoc.metadata.controllers[0]
       const nextContent = tileDoc.content
-      console.log(tileDoc.state.content)
+
+      let created_at
+      const logHistory = tileDoc.state.log
+      for (const logEntry of logHistory) {
+        if (logEntry.type === 2) {
+          created_at = new Date(logEntry.timestamp * 1000)
+          break
+        }
+      }
       await this.graphDocs.insertOne({
         id: streamId,
         parent_id: tileDoc.state.content.parent_id,
         content: nextContent,
+        created_at,
         expire: null,
         first_seen: new Date(),
         last_updated: new Date(),
@@ -148,18 +193,78 @@ export class CoreService {
         creator_id,
         pinned: false,
       })
-      return tileDoc.content
+      return {
+        creator_id,
+        parent_id: tileDoc.state.content.parent_id,
+        streamId,
+        content: tileDoc.content,
+      }
     }
   }
   async *getDiscussion(id: string) {
+    //todo: only transverse every few minutes and not on every request.
     void this.custodianSystem.transverseChildren(id)
     const data = this.graphIndex.find({
       parent_id: id,
     })
     for await (const dataInfo of data) {
       const data = await this.getPost(dataInfo.id)
-      yield {
-        content: data,
+      yield data
+    }
+  }
+  async procSync() {
+    const dataDocs = await this.graphDocs
+      .find({
+        $or: [
+          {
+            last_pinged: {
+              $lte: new Date(new Date().getTime() - 1 * 60 * 60 * 1000), //last hour
+            },
+          },
+          {
+            last_pinged: {
+              $exists: false,
+            },
+          },
+        ],
+      })
+      .toArray()
+    const mutltiQuery = dataDocs.map((e) => ({
+      streamId: e.id,
+    }))
+    const multiResult = await this.ceramic.multiQuery(mutltiQuery)
+    for (const doc of dataDocs) {
+      const tileDoc = multiResult[doc.id]
+      if (doc.versionId !== tileDoc.tip.toString()) {
+        let last_updated
+        if (tileDoc.state.anchorProof) {
+          const anchorProof = tileDoc.state.anchorProof
+          last_updated = new Date(anchorProof.blockTimestamp * 1000)
+        }
+        await this.graphDocs.findOneAndUpdate(
+          {
+            _id: doc._id,
+          },
+          {
+            $set: {
+              versionId: multiResult[doc.id].tip.toString(),
+              content: multiResult.content,
+              last_pinged: new Date(),
+              last_updated,
+            },
+          },
+        )
+      } else {
+        await this.graphDocs.findOneAndUpdate(
+          {
+            _id: doc._id,
+          },
+          {
+            $set: {
+              last_pinged: new Date(),
+            },
+          },
+        )
       }
     }
   }
@@ -222,5 +327,6 @@ export class CoreService {
       'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',
     )*/
     //void this.createBloom('kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho')
+    this.procSync()
   }
 }

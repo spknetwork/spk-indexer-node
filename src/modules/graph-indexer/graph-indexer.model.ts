@@ -25,6 +25,7 @@ export class IndexedDocument implements SpkCollectionItem {
   expire?: any
   schemaStreamId?: string
   first_seen: Date
+  created_at?: Date
   last_updated: Date // Note this is our internal calculated value, this may or may not actually be when it was updated in the Ceramic document. TODO: Use Ceramic timestamps
   last_pinged: Date //Last time the document was checked
   last_accessed?: Date //Maybe a bit too IO intensive?
@@ -72,8 +73,11 @@ export class CSNode implements SpkCollectionItem {
 }
 
 export interface CeramicContainer {
-  parentId: string
+  headers?: any //Special headers regarding the application
   content: any
-  namespace: string
-  app_namespace: string
+  parent_id?: string
+  namespace?: string
+  app?: string //App specific metadata
+  family?: string // Schema validation?
+  type: string //SPK.network format
 }

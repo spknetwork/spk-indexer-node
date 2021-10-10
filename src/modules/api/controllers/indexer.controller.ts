@@ -18,10 +18,11 @@ export class IndexerApiController {
     }
     return out
   }
-  @Get('getpost/:id')
+  @Get('getcontent/:id')
   async getPost(@Param('id') postId) {
     return await indexerContainer.self.getPost(postId)
   }
+
   @Post('putdocument')
   async putDocument(@Body() data) {
     console.log(data)

@@ -25,9 +25,17 @@ export class CoreService {
   postSpider: PostSpiderService
   schemaValidator: SchemaValidatorService
 
-  constructor(readonly ceramic: CeramicClient, private readonly mongoClient: MongoClient) {
+  constructor(readonly ceramic: CeramicClient, public readonly mongoClient: MongoClient) {
     const repoManager = new RepoManager(mongoClient)
     this.schemaValidator = new SchemaValidatorService(this.ceramic, repoManager)
+  }
+
+  public async getAllIndexes() {
+    return await this.graphIndex.find().toArray()
+  }
+
+  public async getAllDocuments() {
+    return await this.graphDocs.find().toArray()
   }
 
   /**

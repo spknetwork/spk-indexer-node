@@ -4,16 +4,17 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { IPFSHTTPClient } from 'ipfs-http-client'
 import { CoreService } from '../graph-indexer/services/core.service'
 import { DebugApiController } from './controllers/debug.controller'
+import { HealthApiController } from './controllers/health.controller'
 import { IndexerApiController } from './controllers/indexer.controller'
 
-export const ipfsContainer: { ipfs: IPFSHTTPClient } = {} as any
+export const ipfsContainer: { self: IPFSHTTPClient } = {} as any
 export const indexerContainer: { self: CoreService } = {} as any
 
 export const INDEXER_API_BASE_URL = '/api/v0/node'
 
 @Module({
   imports: [],
-  controllers: [DebugApiController, IndexerApiController],
+  controllers: [DebugApiController, IndexerApiController, HealthApiController],
   providers: [],
 })
 class ControllerModule {}
@@ -25,9 +26,9 @@ export class IndexerApiModule {
   constructor(
     private readonly ipfs: IPFSHTTPClient,
     private readonly listenPort: number,
-    private readonly self,
+    private readonly self: CoreService,
   ) {
-    ipfsContainer.ipfs = ipfs
+    ipfsContainer.self = ipfs
     indexerContainer.self = self
   }
 
@@ -39,5 +40,6 @@ export class IndexerApiModule {
     SwaggerModule.setup('swagger', app, swaggerDocument)
 
     await app.listen(this.listenPort)
+    console.log(`API listening on port ${this.listenPort}`)
   }
 }

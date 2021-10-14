@@ -49,7 +49,7 @@ export class IndexerApiController {
     type: Number,
   })
   public async getDocumentsForUser(
-    @Query('userIds') userId: string,
+    @Query('userId') userId: string,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
   ) {
@@ -100,7 +100,7 @@ export class IndexerApiController {
     type: Number,
   })
   public async getChildren(
-    @Query('parentIds') parentId: string,
+    @Query('parentId') parentId: string,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
   ) {

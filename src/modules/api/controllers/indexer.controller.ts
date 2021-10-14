@@ -3,7 +3,7 @@ import {
   HttpCode,
   HttpStatus,
   InternalServerErrorException,
-  Post,
+  Put,
   Query,
 } from '@nestjs/common'
 import { Controller, Get, Param } from '@nestjs/common'
@@ -17,7 +17,7 @@ import { DocumentView } from '../resources/document.view'
 export class IndexerApiController {
   constructor() {}
 
-  @Post('index/:documentStreamId')
+  @Put('index/:documentStreamId')
   @ApiOkResponse({ description: 'The document was found and indexed' })
   @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
   public async indexDocument(@Param('documentStreamId') streamId: string) {

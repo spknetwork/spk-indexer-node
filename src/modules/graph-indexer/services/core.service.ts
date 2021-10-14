@@ -14,6 +14,7 @@ import { ConfigService } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
+import { DocumentView } from '../../api/resources/document.view'
 
 export class CoreService {
   db: Db
@@ -84,7 +85,7 @@ export class CoreService {
    * @param {String} id
    * @returns
    */
-  async getChildren(id) {
+  async getChildrenIds(id) {
     const docs = this.graphDocs.find({
       parent_id: id,
     })
@@ -166,7 +167,7 @@ export class CoreService {
    * @param {String} streamId
    * @returns
    */
-  async getPost(streamId) {
+  async getPost(streamId): Promise<DocumentView> {
     const cachedDoc = await this.graphDocs.findOne({ id: streamId })
     if (cachedDoc) {
       return {
@@ -209,14 +210,36 @@ export class CoreService {
       }
     }
   }
-  async *getDiscussion(id: string) {
+  /**
+   * @param id The parent ID for which to retrive a list of child documents
+   * @param skip The number of records to skip from the beginning of the results
+   * @param limit The max number of records to return
+   */
+  async *getChildren(id: string, skip = 0, limit = 25): AsyncGenerator<DocumentView> {
     //todo: only transverse every few minutes and not on every request.
     void this.custodianSystem.transverseChildren(id)
-    const data = this.graphIndex.find({
-      parent_id: id,
-    })
+    const data = this.graphIndex.find(
+      {
+        parent_id: id,
+      },
+      { skip, limit },
+    )
     for await (const dataInfo of data) {
       const data = await this.getPost(dataInfo.id)
+      yield data
+    }
+  }
+  /**
+   * @param creatorId The creator ID of the requested documents
+   * @param skip The number of records to skip from the beginning of the results
+   * @param limit The max number of records to return
+   */
+  async *getForUser(creatorId: string, skip = 0, limit = 25): AsyncGenerator<DocumentView> {
+    // TODO - build logic to get user doc list from IDX
+    const docIdsFromIdx: string[] = []
+
+    for (const docId of docIdsFromIdx) {
+      const data = await this.getPost(docId)
       yield data
     }
   }

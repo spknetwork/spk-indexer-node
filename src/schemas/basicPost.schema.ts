@@ -26,7 +26,7 @@ export const basicPostSchema: JSONSchema7 = {
       maxLength: 64,
       description: 'The type of data. For example 3speak/video',
     },
-    parent_id: {
+    parentId: {
       type: 'string',
       pattern: '^ceramic://.+',
     },

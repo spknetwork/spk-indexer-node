@@ -57,7 +57,7 @@ export class CustodianService {
         await this.graphCs.insertOne({
           id: streamId.toString(),
           custodian_id: fromId,
-          first_seen: new Date(),
+          firstSeen: new Date(),
           last_seen: new Date(),
           last_ping: new Date(),
           ttl: 21600, //6 hours, hardcoding for now. In the future custodian nodes will announce a ttl between 300 seconds and 30 days.
@@ -92,7 +92,7 @@ export class CustodianService {
 
     const arrayItems = await this.graphIndex
       .find({
-        parent_id: payload.parent_id,
+        parentId: payload.parentId,
       })
       .toArray()
     let output = []
@@ -108,7 +108,7 @@ export class CustodianService {
     }
     const msg = {
       type: messageTypes.CUS_RES_SUBGRAPH,
-      parent_id: payload.parent_id,
+      parentId: payload.parentId,
       content: {
         sg: output,
       },
@@ -124,8 +124,8 @@ export class CustodianService {
    * @param fromId
    */
   async _receiveSubgraph(payload, fromId: string) {
-    if (this.asks.has(payload.parent_id)) {
-      void this.events.emit('remote.recv_subgraph', payload.content.sg, payload.parent_id)
+    if (this.asks.has(payload.parentId)) {
+      void this.events.emit('remote.recv_subgraph', payload.content.sg, payload.parentId)
     }
   }
   /**
@@ -137,7 +137,7 @@ export class CustodianService {
     const out = (
       await this.self.graphDocs
         .find({
-          parent_id: null,
+          parentId: null,
           streamId: { $exists: true },
         })
         .toArray()
@@ -154,14 +154,14 @@ export class CustodianService {
   /**
    * Announces local bloom filter to remote nodes
    * Other nodes will respond with the missing entries in your bloom filter
-   * @param parent_id StreamId
+   * @param parentId StreamId
    */
-  async announceBloom(parent_id: string) {
-    const bloomFilter = await this.self.createBloom(parent_id)
+  async announceBloom(parentId: string) {
+    const bloomFilter = await this.self.createBloom(parentId)
     const compiledBloom = bloomFilter ? bloomFilter.saveAsJSON() : bloomFilter
     const msg = {
       type: messageTypes.CUS_ASK_SUBGRAPH,
-      parent_id,
+      parentId,
       bloom: JSON.stringify(compiledBloom),
     }
     const codedMessage = encode(msg)
@@ -196,11 +196,11 @@ export class CustodianService {
       const data = await TileDocument.load(this.self.ceramic, itemId as string)
       //Note: data.content is the first version of a document, data.next is the recent state.
       const { next, content } = data.state
-      const parent_id = content.parent_id
-      if (parent_id === id) {
+      const parentId = content.parentId
+      if (parentId === id) {
         const currentDoc = await this.graphIndex.findOne({
           id: itemId,
-          parent_id: id,
+          parentId: id,
         })
         if (currentDoc) {
           await this.graphIndex.findOneAndUpdate(
@@ -209,17 +209,17 @@ export class CustodianService {
             },
             {
               $set: {
-                last_pinged: new Date(),
+                lastPinged: new Date(),
               },
             },
           )
         } else {
           await this.graphIndex.insertOne({
             id: itemId as string,
-            parent_id,
+            parentId,
             expiration: null,
-            first_seen: new Date(),
-            last_pinged: new Date(),
+            firstSeen: new Date(),
+            lastPinged: new Date(),
           })
         }
       } else {
@@ -240,8 +240,8 @@ export class CustodianService {
 
     await this.announceBloom(id)
     const source = Pushable()
-    const func = (subgraphInfo, parent_id) => {
-      if (parent_id === id) {
+    const func = (subgraphInfo, parentId) => {
+      if (parentId === id) {
         for (const id of subgraphInfo) {
           source.push(id)
         }
@@ -271,7 +271,7 @@ export class CustodianService {
     return (
       await this.graphIndex
         .find({
-          parent_id: id,
+          parentId: id,
         })
         .toArray()
     ).map((e) => e.id)

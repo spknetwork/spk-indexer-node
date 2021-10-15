@@ -40,6 +40,5 @@ export class IndexerApiModule {
     SwaggerModule.setup('swagger', app, swaggerDocument)
 
     await app.listen(this.listenPort)
-    console.log(`API listening on port ${this.listenPort}`)
   }
 }

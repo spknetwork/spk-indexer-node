@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  HttpCode,
-  HttpStatus,
-  InternalServerErrorException,
-  Put,
-  Query,
-} from '@nestjs/common'
+import { BadRequestException, HttpCode, HttpStatus, Put, Query } from '@nestjs/common'
 import { Controller, Get, Param } from '@nestjs/common'
 import { ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 import { indexerContainer } from '../indexer-api.module'
@@ -18,17 +11,17 @@ export class IndexerApiController {
   constructor() {}
 
   @Put('index/:documentStreamId')
-  @ApiOkResponse({ description: 'The document was found and indexed' })
+  @ApiOkResponse({ description: 'The document was found and indexed', type: DocumentView })
   @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
-  public async indexDocument(@Param('documentStreamId') streamId: string) {
-    throw new InternalServerErrorException('not implemented')
+  public async indexDocument(@Param('documentStreamId') streamId: string): Promise<DocumentView> {
+    return await indexerContainer.self.reindexDocument(streamId)
   }
 
   @Get(':documentStreamId')
   @ApiOkResponse({ description: 'The document with the specified stream ID', type: DocumentView })
   @HttpCode(HttpStatus.OK)
-  public async fetchDocument(@Param('documentStreamId') streamId: string) {
-    throw new InternalServerErrorException('not implemented')
+  public async fetchDocument(@Param('documentStreamId') streamId: string): Promise<DocumentView> {
+    return await indexerContainer.self.getPost(streamId)
   }
 
   @Get('foruser/:userId')
@@ -68,7 +61,6 @@ export class IndexerApiController {
     const recordsToSkip = IndexerApiController.calculateSkip(pageSize, page)
 
     // Process request
-
     // Fetch user-owned documents
     const userDocs: DocumentView[] = []
 

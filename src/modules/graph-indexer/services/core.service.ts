@@ -50,14 +50,14 @@ export class CoreService {
   async indexRefs() {
     const storedDocs = await this.graphDocs
       .find({
-        parent_id: null,
+        parentId: null,
       })
       .toArray()
 
     for (const doc of storedDocs) {
       const childDocs = await this.graphDocs
         .find({
-          parent_id: doc.id,
+          parentId: doc.id,
         })
         .toArray()
       for (const childDoc of childDocs) {
@@ -66,7 +66,7 @@ export class CoreService {
             { id: childDoc.id },
             {
               $set: {
-                last_pinged: new Date(),
+                lastPinged: new Date(),
               },
             },
           )
@@ -74,14 +74,42 @@ export class CoreService {
           await this.graphIndex.insertOne({
             _id: new ObjectId(),
             id: childDoc.id,
-            parent_id: doc.id,
+            parentId: doc.id,
             expiration: null,
-            first_seen: new Date(),
-            last_pinged: new Date(),
+            firstSeen: new Date(),
+            lastPinged: new Date(),
             last_pulled: new Date(),
           })
         }
       }
+    }
+  }
+
+  /**
+   * @param streamId stream ID of ceramic document to retrieve and reindex
+   */
+  public async reindexDocument(streamId: string): Promise<DocumentView> {
+    const tileDoc = await TileDocument.load(this.ceramic, streamId)
+
+    const res = await this.graphDocs.findOneAndUpdate(
+      {
+        id: tileDoc.id.toString(),
+      },
+      {
+        $set: {
+          versionId: tileDoc.tip.toString(),
+          lastUpdated: new Date(),
+          lastPinged: new Date(),
+          content: tileDoc.content,
+        },
+      },
+    )
+
+    return {
+      streamId,
+      parentId: res.value.parentId,
+      content: res.value.content,
+      creatorId: tileDoc.controllers[0],
     }
   }
 
@@ -92,7 +120,7 @@ export class CoreService {
    */
   async getChildrenIds(id) {
     const docs = this.graphDocs.find({
-      parent_id: id,
+      parentId: id,
     })
 
     console.log(docs)
@@ -109,12 +137,12 @@ export class CoreService {
    * @param {Object} content
    * @returns
    */
-  async createPost(content, parent_id: string) {
+  async createPost(content, parentId: string) {
     const permlink = base64url.encode(Crypto.randomBytes(6))
     const output = await TileDocument.create(
       this.ceramic,
       {
-        parent_id: parent_id,
+        parentId: parentId,
         content,
       },
       { tags: ['spk_network'], controllers: [this.ceramic.did.id] },
@@ -134,11 +162,11 @@ export class CoreService {
       content,
       created_at: new Date(),
       expire: null,
-      first_seen: new Date(),
-      last_updated: new Date(),
-      last_pinged: new Date(),
+      firstSeen: new Date(),
+      lastUpdated: new Date(),
+      lastPinged: new Date(),
       pinned: true,
-      parent_id,
+      parentId,
     })
     return output.id.toString()
   }
@@ -162,8 +190,8 @@ export class CoreService {
       {
         $set: {
           versionId: tileDoc.tip.toString(),
-          last_updated: new Date(),
-          last_pinged: new Date(),
+          lastUpdated: new Date(),
+          lastPinged: new Date(),
         },
       },
     )
@@ -186,14 +214,14 @@ export class CoreService {
     const cachedDoc = await this.graphDocs.findOne({ id: streamId })
     if (cachedDoc) {
       return {
-        creator_id: cachedDoc.creator_id,
+        creatorId: cachedDoc.creatorId,
         streamId: cachedDoc.id,
-        parent_id: cachedDoc.parent_id,
+        parentId: cachedDoc.parentId,
         content: cachedDoc.content,
       }
     } else {
       const tileDoc = await TileDocument.load(this.ceramic, streamId)
-      const creator_id = tileDoc.metadata.controllers[0]
+      const creatorId = tileDoc.metadata.controllers[0]
       const nextContent = tileDoc.content
 
       let created_at
@@ -206,20 +234,20 @@ export class CoreService {
       }
       await this.graphDocs.insertOne({
         id: streamId,
-        parent_id: tileDoc.state.content.parent_id,
+        parentId: tileDoc.state.content.parentId,
         content: nextContent,
         created_at,
         expire: null,
-        first_seen: new Date(),
-        last_updated: new Date(),
-        last_pinged: new Date(),
+        firstSeen: new Date(),
+        lastUpdated: new Date(),
+        lastPinged: new Date(),
         versionId: tileDoc.tip.toString(),
-        creator_id,
+        creatorId,
         pinned: false,
       })
       return {
-        creator_id,
-        parent_id: tileDoc.state.content.parent_id,
+        creatorId,
+        parentId: tileDoc.state.content.parentId,
         streamId,
         content: tileDoc.content,
       }
@@ -235,7 +263,7 @@ export class CoreService {
     void this.custodianSystem.transverseChildren(id)
     const data = this.graphIndex.find(
       {
-        parent_id: id,
+        parentId: id,
       },
       { skip, limit },
     )
@@ -263,12 +291,12 @@ export class CoreService {
       .find({
         $or: [
           {
-            last_pinged: {
+            lastPinged: {
               $lte: new Date(new Date().getTime() - 1 * 60 * 60 * 1000), //last hour
             },
           },
           {
-            last_pinged: {
+            lastPinged: {
               $exists: false,
             },
           },
@@ -282,10 +310,10 @@ export class CoreService {
     for (const doc of dataDocs) {
       const tileDoc = multiResult[doc.id]
       if (doc.versionId !== tileDoc.tip.toString()) {
-        let last_updated
+        let lastUpdated
         if (tileDoc.state.anchorProof) {
           const anchorProof = tileDoc.state.anchorProof
-          last_updated = new Date(anchorProof.blockTimestamp * 1000)
+          lastUpdated = new Date(anchorProof.blockTimestamp * 1000)
         }
         await this.graphDocs.findOneAndUpdate(
           {
@@ -295,8 +323,8 @@ export class CoreService {
             $set: {
               versionId: multiResult[doc.id].tip.toString(),
               content: multiResult.content,
-              last_pinged: new Date(),
-              last_updated,
+              lastPinged: new Date(),
+              lastUpdated,
             },
           },
         )
@@ -307,18 +335,18 @@ export class CoreService {
           },
           {
             $set: {
-              last_pinged: new Date(),
+              lastPinged: new Date(),
             },
           },
         )
       }
     }
   }
-  async createBloom(parent_id: string) {
+  async createBloom(parentId: string) {
     const items = (
       await this.graphIndex
         .find({
-          parent_id,
+          parentId,
         })
         .toArray()
     ).map((e) => e.id)

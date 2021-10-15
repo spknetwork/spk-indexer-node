@@ -20,18 +20,18 @@ export class IndexedDocument implements SpkCollectionItem {
    */
   id: string
   // Parent StreamID
-  parent_id?: string
+  parentId?: string
   content: unknown
   expire?: any
   schemaStreamId?: string
-  first_seen: Date
+  firstSeen: Date
   created_at?: Date
-  last_updated: Date // Note this is our internal calculated value, this may or may not actually be when it was updated in the Ceramic document. TODO: Use Ceramic timestamps
-  last_pinged: Date //Last time the document was checked
+  lastUpdated: Date // Note this is our internal calculated value, this may or may not actually be when it was updated in the Ceramic document. TODO: Use Ceramic timestamps
+  lastPinged: Date //Last time the document was checked
   last_accessed?: Date //Maybe a bit too IO intensive?
   versionId?: string
   pinned: boolean
-  creator_id?: string
+  creatorId?: string
 }
 
 /**
@@ -41,10 +41,10 @@ export class IndexedNode implements SpkCollectionItem {
   _id: ObjectId
   // Stream ID
   id: string
-  parent_id?: string
+  parentId?: string
   expiration: any
-  first_seen: Date
-  last_pinged: Date //Last time the subgraph was received.
+  firstSeen: Date
+  lastPinged: Date //Last time the subgraph was received.
   last_pulled?: Date
   validated?: boolean
 }
@@ -57,7 +57,7 @@ export class CSNode implements SpkCollectionItem {
   id: string
   custodian_id: string //Libp2p PeerId
   last_seen: Date //Latest date the node has announced it's responsibility of this subgraph
-  first_seen: Date //Date the node has first announced it's responsibility of this subgraph
+  firstSeen: Date //Date the node has first announced it's responsibility of this subgraph
   last_ping: Date //Date the node has been known to be online
   ttl?: number //Period of time the record is valid for and must be rechecked. (ttl + last_seen) = recheck time
   ttl_time?: Date //Exact date of recheck
@@ -75,7 +75,7 @@ export class CSNode implements SpkCollectionItem {
 export interface CeramicContainer {
   headers?: any //Special headers regarding the application
   content: any
-  parent_id?: string
+  parentId?: string
   namespace?: string
   app?: string //App specific metadata
   family?: string // Schema validation?

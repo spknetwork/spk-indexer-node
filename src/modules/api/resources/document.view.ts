@@ -8,9 +8,9 @@ export class DocumentView {
 
   @ApiProperty({
     description:
-      'The ceramic stream ID of the parent of the document (null if this is a top-level document)',
+      'The ceramic stream ID of the parent of the document (undefined if this is a top-level document)',
   })
-  parent_id: string
+  parentId?: string
 
   @ApiProperty({
     description: 'Document contents',
@@ -19,5 +19,5 @@ export class DocumentView {
   @ApiProperty({
     description: 'The ID of the creator of this document',
   })
-  creator_id: string
+  creatorId: string
 }

@@ -15,14 +15,19 @@ import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
 import { DocumentView } from '../../api/resources/document.view'
+import Crypto from 'crypto'
+import base64url from 'base64url'
 
+const idxAliases = {
+  rootPosts: 'ceramic://kjzl6cwe1jw147fikhkjs9qysmv6dkdsu5i6zbgk4x9p47gt9uedru1755y76dg',
+}
 export class CoreService {
   db: Db
   graphDocs: Collection<IndexedDocument>
   graphIndex: Collection<IndexedNode>
   _threeId
   custodianSystem: CustodianService
-  idx
+  idx: IDX
   postSpider: PostSpiderService
   schemaValidator: SchemaValidatorService
 
@@ -105,6 +110,7 @@ export class CoreService {
    * @returns
    */
   async createPost(content, parent_id: string) {
+    const permlink = base64url.encode(Crypto.randomBytes(6))
     const output = await TileDocument.create(
       this.ceramic,
       {
@@ -114,6 +120,15 @@ export class CoreService {
       { tags: ['spk_network'], controllers: [this.ceramic.did.id] },
       { anchor: true, publish: false },
     )
+    let dataRecord = await this.idx.get('rootPosts', this.ceramic.did.id)
+    if (dataRecord) {
+      dataRecord[permlink] = output.id.toUrl()
+    } else {
+      dataRecord = {
+        [permlink]: output.id.toUrl(),
+      }
+    }
+    await this.idx.set('rootPosts', dataRecord)
     await this.graphDocs.insertOne({
       id: output.id.toString(),
       content,
@@ -342,22 +357,28 @@ export class CoreService {
     console.log(this._threeId.getDidProvider())
     console.log(did.id)
     this.idx = new IDX({
+      autopin: true,
       ceramic: this.ceramic,
+      aliases: idxAliases,
     })
 
     this.custodianSystem = new CustodianService(this)
     await this.custodianSystem.start()
     this.postSpider = new PostSpiderService(this)
+    /*await this.postSpider.start()
+    await this.postSpider.pullSingle(
+      'did:3:kjzl6cwe1jw147v2fzxjvpbvjp87glksoi2p698t6bbhuv2cuc3vie7kcopvyfb',
+    )*/
     //;(await this.postSpider.start()) *
     //void this.indexRefs()
     /*void this.createPost(
       {
-        title: 'very cool! Title! Yes!',
-        description: 'Another amazing test post!',
+        title: 'Test post with permlink',
+        description: 'Test post with permlink',
       },
       'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',
     )*/
     //void this.createBloom('kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho')
-    this.procSync()
+    //this.procSync()
   }
 }

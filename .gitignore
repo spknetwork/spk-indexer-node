@@ -2,3 +2,4 @@ node_modules
 *-lock.json
 coverage
 logs
+dist

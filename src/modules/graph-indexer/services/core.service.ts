@@ -14,7 +14,7 @@ import { ConfigService } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
-import { DocumentView } from '../../api/resources/document.view'
+import { DocumentView, DocumentViewDto } from '../../api/resources/document.view'
 import Crypto from 'crypto'
 import base64url from 'base64url'
 
@@ -50,14 +50,14 @@ export class CoreService {
   async indexRefs() {
     const storedDocs = await this.graphDocs
       .find({
-        parentId: null,
+        parent_id: null,
       })
       .toArray()
 
     for (const doc of storedDocs) {
       const childDocs = await this.graphDocs
         .find({
-          parentId: doc.id,
+          parent_id: doc.id,
         })
         .toArray()
       for (const childDoc of childDocs) {
@@ -66,7 +66,7 @@ export class CoreService {
             { id: childDoc.id },
             {
               $set: {
-                lastPinged: new Date(),
+                last_pinged: new Date(),
               },
             },
           )
@@ -74,10 +74,10 @@ export class CoreService {
           await this.graphIndex.insertOne({
             _id: new ObjectId(),
             id: childDoc.id,
-            parentId: doc.id,
+            parent_id: doc.id,
             expiration: null,
-            firstSeen: new Date(),
-            lastPinged: new Date(),
+            first_seen: new Date(),
+            last_pinged: new Date(),
             last_pulled: new Date(),
           })
         }
@@ -88,18 +88,20 @@ export class CoreService {
   /**
    * @param streamId stream ID of ceramic document to retrieve and reindex
    */
-  public async reindexDocument(streamId: string): Promise<DocumentView> {
+  public async reindexDocument(streamId: string): Promise<DocumentViewDto> {
     const tileDoc = await TileDocument.load(this.ceramic, streamId)
 
+    // TODO - figure out if we need a different method for the first time indexing a document vs reindexing a document
+    // Possibly in the first time indexing document, build the graph index, and in the reindex, don't?
     const res = await this.graphDocs.findOneAndUpdate(
       {
         id: tileDoc.id.toString(),
       },
       {
         $set: {
-          versionId: tileDoc.tip.toString(),
-          lastUpdated: new Date(),
-          lastPinged: new Date(),
+          version_id: tileDoc.tip.toString(),
+          last_updated: new Date(),
+          last_pinged: new Date(),
           content: tileDoc.content,
         },
       },
@@ -107,7 +109,7 @@ export class CoreService {
 
     return {
       streamId,
-      parentId: res.value.parentId,
+      parentId: res.value.parent_id,
       content: res.value.content,
       creatorId: tileDoc.controllers[0],
     }
@@ -120,7 +122,7 @@ export class CoreService {
    */
   async getChildrenIds(id) {
     const docs = this.graphDocs.find({
-      parentId: id,
+      parent_id: id,
     })
 
     console.log(docs)
@@ -137,12 +139,12 @@ export class CoreService {
    * @param {Object} content
    * @returns
    */
-  async createPost(content, parentId: string) {
+  async createPost(content, parent_id: string) {
     const permlink = base64url.encode(Crypto.randomBytes(6))
     const output = await TileDocument.create(
       this.ceramic,
       {
-        parentId: parentId,
+        parent_id: parent_id,
         content,
       },
       { tags: ['spk_network'], controllers: [this.ceramic.did.id] },
@@ -162,11 +164,11 @@ export class CoreService {
       content,
       created_at: new Date(),
       expire: null,
-      firstSeen: new Date(),
-      lastUpdated: new Date(),
-      lastPinged: new Date(),
+      first_seen: new Date(),
+      last_updated: new Date(),
+      last_pinged: new Date(),
       pinned: true,
-      parentId,
+      parent_id: parent_id,
     })
     return output.id.toString()
   }
@@ -189,9 +191,9 @@ export class CoreService {
       },
       {
         $set: {
-          versionId: tileDoc.tip.toString(),
-          lastUpdated: new Date(),
-          lastPinged: new Date(),
+          version_id: tileDoc.tip.toString(),
+          last_updated: new Date(),
+          last_pinged: new Date(),
         },
       },
     )
@@ -207,21 +209,21 @@ export class CoreService {
   /**
    * Retrives a post from the indexer.
    * Fetches the post from the network if unavailable.
-   * @param {String} streamId
+   * @param {String} stream_id
    * @returns
    */
-  async getPost(streamId): Promise<DocumentView> {
-    const cachedDoc = await this.graphDocs.findOne({ id: streamId })
+  async getPost(stream_id: string): Promise<DocumentView> {
+    const cachedDoc = await this.graphDocs.findOne({ id: stream_id })
     if (cachedDoc) {
       return {
-        creatorId: cachedDoc.creatorId,
-        streamId: cachedDoc.id,
-        parentId: cachedDoc.parentId,
+        creator_id: cachedDoc.creator_id,
+        stream_id: cachedDoc.id,
+        parent_id: cachedDoc.parent_id,
         content: cachedDoc.content,
       }
     } else {
-      const tileDoc = await TileDocument.load(this.ceramic, streamId)
-      const creatorId = tileDoc.metadata.controllers[0]
+      const tileDoc = await TileDocument.load(this.ceramic, stream_id)
+      const creator_id = tileDoc.metadata.controllers[0]
       const nextContent = tileDoc.content
 
       let created_at
@@ -233,22 +235,22 @@ export class CoreService {
         }
       }
       await this.graphDocs.insertOne({
-        id: streamId,
-        parentId: tileDoc.state.content.parentId,
+        id: stream_id,
+        parent_id: tileDoc.state.content.parent_id,
         content: nextContent,
         created_at,
         expire: null,
-        firstSeen: new Date(),
-        lastUpdated: new Date(),
-        lastPinged: new Date(),
-        versionId: tileDoc.tip.toString(),
-        creatorId,
+        first_seen: new Date(),
+        last_updated: new Date(),
+        last_pinged: new Date(),
+        version_id: tileDoc.tip.toString(),
+        creator_id: creator_id,
         pinned: false,
       })
       return {
-        creatorId,
-        parentId: tileDoc.state.content.parentId,
-        streamId,
+        creator_id: creator_id,
+        parent_id: tileDoc.state.content.parent_id,
+        stream_id: stream_id,
         content: tileDoc.content,
       }
     }
@@ -263,7 +265,7 @@ export class CoreService {
     void this.custodianSystem.transverseChildren(id)
     const data = this.graphIndex.find(
       {
-        parentId: id,
+        parent_id: id,
       },
       { skip, limit },
     )
@@ -291,12 +293,12 @@ export class CoreService {
       .find({
         $or: [
           {
-            lastPinged: {
+            last_pinged: {
               $lte: new Date(new Date().getTime() - 1 * 60 * 60 * 1000), //last hour
             },
           },
           {
-            lastPinged: {
+            last_pinged: {
               $exists: false,
             },
           },
@@ -309,7 +311,7 @@ export class CoreService {
     const multiResult = await this.ceramic.multiQuery(mutltiQuery)
     for (const doc of dataDocs) {
       const tileDoc = multiResult[doc.id]
-      if (doc.versionId !== tileDoc.tip.toString()) {
+      if (doc.version_id !== tileDoc.tip.toString()) {
         let lastUpdated
         if (tileDoc.state.anchorProof) {
           const anchorProof = tileDoc.state.anchorProof
@@ -321,10 +323,10 @@ export class CoreService {
           },
           {
             $set: {
-              versionId: multiResult[doc.id].tip.toString(),
+              version_id: multiResult[doc.id].tip.toString(),
               content: multiResult.content,
-              lastPinged: new Date(),
-              lastUpdated,
+              last_pinged: new Date(),
+              last_updated: lastUpdated,
             },
           },
         )
@@ -335,18 +337,18 @@ export class CoreService {
           },
           {
             $set: {
-              lastPinged: new Date(),
+              last_pinged: new Date(),
             },
           },
         )
       }
     }
   }
-  async createBloom(parentId: string) {
+  async createBloom(parent_id: string) {
     const items = (
       await this.graphIndex
         .find({
-          parentId,
+          parent_id: parent_id,
         })
         .toArray()
     ).map((e) => e.id)

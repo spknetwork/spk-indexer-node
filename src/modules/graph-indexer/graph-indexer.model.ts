@@ -20,18 +20,18 @@ export class IndexedDocument implements SpkCollectionItem {
    */
   id: string
   // Parent StreamID
-  parentId?: string
+  parent_id?: string
   content: unknown
   expire?: any
-  schemaStreamId?: string
-  firstSeen: Date
+  schema_stream_id?: string
+  first_seen: Date
   created_at?: Date
-  lastUpdated: Date // Note this is our internal calculated value, this may or may not actually be when it was updated in the Ceramic document. TODO: Use Ceramic timestamps
-  lastPinged: Date //Last time the document was checked
+  last_updated: Date // Note this is our internal calculated value, this may or may not actually be when it was updated in the Ceramic document. TODO: Use Ceramic timestamps
+  last_pinged: Date //Last time the document was checked
   last_accessed?: Date //Maybe a bit too IO intensive?
-  versionId?: string
+  version_id?: string
   pinned: boolean
-  creatorId?: string
+  creator_id?: string
 }
 
 /**
@@ -41,10 +41,10 @@ export class IndexedNode implements SpkCollectionItem {
   _id: ObjectId
   // Stream ID
   id: string
-  parentId?: string
+  parent_id?: string
   expiration: any
-  firstSeen: Date
-  lastPinged: Date //Last time the subgraph was received.
+  first_seen: Date
+  last_pinged: Date //Last time the subgraph was received.
   last_pulled?: Date
   validated?: boolean
 }
@@ -57,7 +57,7 @@ export class CSNode implements SpkCollectionItem {
   id: string
   custodian_id: string //Libp2p PeerId
   last_seen: Date //Latest date the node has announced it's responsibility of this subgraph
-  firstSeen: Date //Date the node has first announced it's responsibility of this subgraph
+  first_seen: Date //Date the node has first announced it's responsibility of this subgraph
   last_ping: Date //Date the node has been known to be online
   ttl?: number //Period of time the record is valid for and must be rechecked. (ttl + last_seen) = recheck time
   ttl_time?: Date //Exact date of recheck
@@ -75,7 +75,7 @@ export class CSNode implements SpkCollectionItem {
 export interface CeramicContainer {
   headers?: any //Special headers regarding the application
   content: any
-  parentId?: string
+  parent_id?: string
   namespace?: string
   app?: string //App specific metadata
   family?: string // Schema validation?

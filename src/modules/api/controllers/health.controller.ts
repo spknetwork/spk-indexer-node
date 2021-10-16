@@ -5,7 +5,7 @@ import _ from 'lodash'
 
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
-@Controller(`/api/v0/node/health`)
+@Controller(`/api/v0/health`)
 export class HealthApiController {
   constructor() {}
 

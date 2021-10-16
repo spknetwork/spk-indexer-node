@@ -2,7 +2,7 @@ import { BadRequestException, HttpCode, HttpStatus, Put, Query } from '@nestjs/c
 import { Controller, Get, Param } from '@nestjs/common'
 import { ApiAcceptedResponse, ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 import { indexerContainer } from '../indexer-api.module'
-import { DocumentView } from '../resources/document.view'
+import { DocumentViewDto } from '../resources/document.view'
 
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
@@ -19,14 +19,20 @@ export class IndexerApiController {
   }
 
   @Get(':documentStreamId')
-  @ApiOkResponse({ description: 'The document with the specified stream ID', type: DocumentView })
+  @ApiOkResponse({
+    description: 'The document with the specified stream ID',
+    type: DocumentViewDto,
+  })
   @HttpCode(HttpStatus.OK)
-  public async fetchDocument(@Param('documentStreamId') streamId: string): Promise<DocumentView> {
-    return await indexerContainer.self.getPost(streamId)
+  public async fetchDocument(
+    @Param('documentStreamId') streamId: string,
+  ): Promise<DocumentViewDto> {
+    const doc = await indexerContainer.self.getPost(streamId)
+    return DocumentViewDto.fromDocumentView(doc)
   }
 
   @Get('foruser/userdocuments')
-  @ApiOkResponse({ description: 'Documents for the user', type: [DocumentView] })
+  @ApiOkResponse({ description: 'Documents for the user', type: [DocumentViewDto] })
   @ApiQuery({
     name: 'userId',
     required: true,
@@ -63,10 +69,10 @@ export class IndexerApiController {
 
     // Process request
     // Fetch user-owned documents
-    const userDocs: DocumentView[] = []
+    const userDocs: DocumentViewDto[] = []
 
     for await (const item of indexerContainer.self.getForUser(userId, recordsToSkip, pageSize)) {
-      userDocs.push(item)
+      userDocs.push(DocumentViewDto.fromDocumentView(item))
     }
 
     return userDocs
@@ -75,7 +81,7 @@ export class IndexerApiController {
   @Get('children')
   @ApiOkResponse({
     description: 'Array of children of the provided document stream ID',
-    type: [DocumentView],
+    type: [DocumentViewDto],
   })
   @ApiQuery({
     name: 'parentId',
@@ -112,10 +118,10 @@ export class IndexerApiController {
     const recordsToSkip = IndexerApiController.calculateSkip(pageSize, page)
 
     // Fetch child documents
-    const children: DocumentView[] = []
+    const children: DocumentViewDto[] = []
 
     for await (const item of indexerContainer.self.getChildren(parentId, recordsToSkip, pageSize)) {
-      children.push(item)
+      children.push(DocumentViewDto.fromDocumentView(item))
     }
 
     return children

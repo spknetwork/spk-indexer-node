@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 
-export class DocumentView {
+export class DocumentViewDto {
   @ApiProperty({
     description: 'The ceramic stream ID of the document',
   })
@@ -20,4 +20,22 @@ export class DocumentView {
     description: 'The ID of the creator of this document',
   })
   creatorId: string
+
+  static fromDocumentView(view: DocumentView): DocumentViewDto {
+    return {
+      streamId: view.stream_id,
+      parentId: view.parent_id,
+      content: view.content,
+      creatorId: view.creator_id,
+    }
+  }
+}
+
+export interface DocumentView {
+  stream_id: string
+
+  parent_id?: string
+
+  content: any
+  creator_id: string
 }

@@ -1,20 +1,21 @@
 import { BadRequestException, HttpCode, HttpStatus, Put, Query } from '@nestjs/common'
 import { Controller, Get, Param } from '@nestjs/common'
-import { ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
+import { ApiAcceptedResponse, ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 import { indexerContainer } from '../indexer-api.module'
 import { DocumentView } from '../resources/document.view'
 
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
-@Controller(`/api/v0/node/indexer`)
+@Controller(`/api/v0/indexer`)
 export class IndexerApiController {
   constructor() {}
 
   @Put('index/:documentStreamId')
-  @ApiOkResponse({ description: 'The document was found and indexed', type: DocumentView })
+  @ApiAcceptedResponse({ description: 'The document was found and indexed' })
   @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
-  public async indexDocument(@Param('documentStreamId') streamId: string): Promise<DocumentView> {
-    return await indexerContainer.self.reindexDocument(streamId)
+  @HttpCode(HttpStatus.ACCEPTED)
+  public async indexDocument(@Param('documentStreamId') streamId: string): Promise<void> {
+    void indexerContainer.self.reindexDocument(streamId)
   }
 
   @Get(':documentStreamId')
@@ -24,7 +25,7 @@ export class IndexerApiController {
     return await indexerContainer.self.getPost(streamId)
   }
 
-  @Get('foruser/:userId')
+  @Get('foruser/userdocuments')
   @ApiOkResponse({ description: 'Documents for the user', type: [DocumentView] })
   @ApiQuery({
     name: 'userId',
@@ -71,7 +72,7 @@ export class IndexerApiController {
     return userDocs
   }
 
-  @Get('children/:documentStreamId')
+  @Get('children')
   @ApiOkResponse({
     description: 'Array of children of the provided document stream ID',
     type: [DocumentView],

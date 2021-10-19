@@ -161,7 +161,7 @@ export class CustodianService {
     const compiledBloom = bloomFilter ? bloomFilter.saveAsJSON() : bloomFilter
     const msg = {
       type: messageTypes.CUS_ASK_SUBGRAPH,
-      parent_id,
+      parent_id: parent_id,
       bloom: JSON.stringify(compiledBloom),
     }
     const codedMessage = encode(msg)
@@ -216,7 +216,7 @@ export class CustodianService {
         } else {
           await this.graphIndex.insertOne({
             id: itemId as string,
-            parent_id,
+            parent_id: parent_id,
             expiration: null,
             first_seen: new Date(),
             last_pinged: new Date(),

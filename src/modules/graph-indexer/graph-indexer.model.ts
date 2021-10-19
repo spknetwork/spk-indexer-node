@@ -23,13 +23,13 @@ export class IndexedDocument implements SpkCollectionItem {
   parent_id?: string
   content: unknown
   expire?: any
-  schemaStreamId?: string
+  schema_stream_id?: string
   first_seen: Date
   created_at?: Date
   last_updated: Date // Note this is our internal calculated value, this may or may not actually be when it was updated in the Ceramic document. TODO: Use Ceramic timestamps
   last_pinged: Date //Last time the document was checked
   last_accessed?: Date //Maybe a bit too IO intensive?
-  versionId?: string
+  version_id?: string
   pinned: boolean
   creator_id?: string
 }

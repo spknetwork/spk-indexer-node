@@ -26,7 +26,7 @@ export interface DebugSummaryInfo {
 
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
-@Controller(`/api/v0/node/debug`)
+@Controller(`/api/v0/debug`)
 export class DebugApiController {
   constructor() {}
 

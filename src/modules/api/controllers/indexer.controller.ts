@@ -1,4 +1,4 @@
-import { BadRequestException, HttpCode, HttpStatus, Put, Query } from '@nestjs/common'
+import { BadRequestException, HttpCode, HttpStatus, Post, Put, Query } from '@nestjs/common'
 import { Controller, Get, Param } from '@nestjs/common'
 import { ApiAcceptedResponse, ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 import { indexerContainer } from '../indexer-api.module'
@@ -14,8 +14,16 @@ export class IndexerApiController {
   @ApiAcceptedResponse({ description: 'The document was found and indexed' })
   @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
   @HttpCode(HttpStatus.ACCEPTED)
+  public async reindexDocument(@Param('documentStreamId') streamId: string): Promise<void> {
+    void indexerContainer.self.docCacheService.refreshCachedDoc(streamId)
+  }
+
+  @Post('index/:documentStreamId')
+  @ApiAcceptedResponse({ description: 'The document was found and indexed' })
+  @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
+  @HttpCode(HttpStatus.CREATED)
   public async indexDocument(@Param('documentStreamId') streamId: string): Promise<void> {
-    void indexerContainer.self.reindexDocument(streamId)
+    void indexerContainer.self.docCacheService.initializeCachedDoc(streamId)
   }
 
   @Get(':documentStreamId')

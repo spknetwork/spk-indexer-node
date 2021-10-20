@@ -224,7 +224,7 @@ export class CoreService {
     } else {
       const tileDoc = await TileDocument.load(this.ceramic, stream_id)
       const creator_id = tileDoc.metadata.controllers[0]
-      const nextContent = tileDoc.content
+      const nextContent = (tileDoc.content as any).content
 
       let created_at
       const logHistory = tileDoc.state.log
@@ -251,7 +251,7 @@ export class CoreService {
         creator_id: creator_id,
         parent_id: tileDoc.state.content.parent_id,
         stream_id: stream_id,
-        content: tileDoc.content,
+        content: (tileDoc.content as any).content, //this is probably not safe longterm.
       }
     }
   }

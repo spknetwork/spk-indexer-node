@@ -18,7 +18,7 @@ export class IndexerApiController {
     void indexerContainer.self.reindexDocument(streamId)
   }
 
-  @Get(':documentStreamId')
+  @Get('documents/:documentStreamId')
   @ApiOkResponse({
     description: 'The document with the specified stream ID',
     type: DocumentViewDto,
@@ -103,6 +103,7 @@ export class IndexerApiController {
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
   ) {
+    console.log(parentId)
     // Validate page parameters
     if (!page) page = 1
     if (!pageSize) pageSize = 25

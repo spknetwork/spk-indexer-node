@@ -8,15 +8,16 @@ import { IDX } from '@ceramicstudio/idx'
 import { ObjectId } from 'bson'
 import { CustodianService } from './custodian.service'
 import { PostSpiderService } from './post-spider.service'
-import { RepoManager } from '../../mongo-access/services/repo-manager.service'
 import { SchemaValidatorService } from '../../schema-validator/services/schema-validator.service'
 import { ConfigService } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
-import { DocumentView, DocumentViewDto } from '../../api/resources/document.view'
+import { DocumentView } from '../../api/resources/document.view'
 import Crypto from 'crypto'
 import base64url from 'base64url'
+import { DocCacheService } from './doc-cache.service'
+import { DatabaseMaintService } from './database-maint.service'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw147fikhkjs9qysmv6dkdsu5i6zbgk4x9p47gt9uedru1755y76dg',
@@ -30,10 +31,11 @@ export class CoreService {
   idx: IDX
   postSpider: PostSpiderService
   schemaValidator: SchemaValidatorService
+  docCacheService: DocCacheService
 
   constructor(readonly ceramic: CeramicClient, public readonly mongoClient: MongoClient) {
-    const repoManager = new RepoManager(mongoClient)
-    this.schemaValidator = new SchemaValidatorService(this.ceramic, repoManager)
+    this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
+    this.docCacheService = new DocCacheService(ceramic, this)
   }
 
   public async getAllIndexes() {
@@ -86,33 +88,18 @@ export class CoreService {
   }
 
   /**
-   * @param streamId stream ID of ceramic document to retrieve and reindex
+   * @description Create a node in the graph index for a new document
    */
-  public async reindexDocument(streamId: string): Promise<DocumentViewDto> {
-    const tileDoc = await TileDocument.load(this.ceramic, streamId)
-
-    // TODO - figure out if we need a different method for the first time indexing a document vs reindexing a document
-    // Possibly in the first time indexing document, build the graph index, and in the reindex, don't?
-    const res = await this.graphDocs.findOneAndUpdate(
-      {
-        id: tileDoc.id.toString(),
-      },
-      {
-        $set: {
-          version_id: tileDoc.tip.toString(),
-          last_updated: new Date(),
-          last_pinged: new Date(),
-          content: tileDoc.content,
-        },
-      },
-    )
-
-    return {
-      streamId,
-      parentId: res.value.parent_id,
-      content: res.value.content,
-      creatorId: tileDoc.controllers[0],
-    }
+  public async initGraphIndexNode(streamId: string, parentId?: string) {
+    await this.graphIndex.insertOne({
+      _id: new ObjectId(),
+      id: streamId,
+      parent_id: parentId,
+      expiration: null,
+      first_seen: new Date(),
+      last_pinged: new Date(),
+      last_pulled: new Date(),
+    })
   }
 
   /**
@@ -360,10 +347,10 @@ export class CoreService {
   }
 
   async start() {
-    this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
-
+    // Init collections and indexes
     this.graphDocs = this.db.collection(MongoCollections.IndexedDocs)
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
+    await DatabaseMaintService.createIndexes(this)
 
     this._threeId = await ThreeIdProvider.create({
       ceramic: this.ceramic,

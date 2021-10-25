@@ -1,8 +1,17 @@
-import { BadRequestException, HttpCode, HttpStatus, Post, Put, Query } from '@nestjs/common'
+import {
+  BadRequestException,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Put,
+  Query,
+  Response,
+} from '@nestjs/common'
 import { Controller, Get, Param } from '@nestjs/common'
 import { ApiAcceptedResponse, ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 import { indexerContainer } from '../indexer-api.module'
 import { DocumentViewDto } from '../resources/document.view'
+import { Response as ExpressResponse } from 'express'
 
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
@@ -35,10 +44,11 @@ export class IndexerApiController {
   public async fetchDocument(
     @Param('documentStreamId') streamId: string,
   ): Promise<DocumentViewDto> {
-    const doc = await indexerContainer.self.getPost(streamId)
+    const doc = await indexerContainer.self.getDocument(streamId)
     return DocumentViewDto.fromDocumentView(doc)
   }
 
+  // TODO - fix api ok response type
   @Get('foruser/userdocuments')
   @ApiOkResponse({ description: 'Documents for the user', type: [DocumentViewDto] })
   @ApiQuery({
@@ -57,6 +67,7 @@ export class IndexerApiController {
     type: Number,
   })
   public async getDocumentsForUser(
+    @Response() response: ExpressResponse,
     @Query('userId') userId: string,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
@@ -77,13 +88,29 @@ export class IndexerApiController {
 
     // Process request
     // Fetch user-owned documents
-    const userDocs: DocumentViewDto[] = []
+    //     const userDocs: DocumentViewDto[] = []
 
-    for await (const item of indexerContainer.self.getForUser(userId, recordsToSkip, pageSize)) {
-      userDocs.push(DocumentViewDto.fromDocumentView(item))
+    response.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Transfer-Encoding': 'chunked',
+    })
+
+    for await (const item of indexerContainer.self.getDocsForUser(
+      userId,
+      recordsToSkip,
+      pageSize,
+    )) {
+      //       console.log(`writing item `, item)
+      response.write(JSON.stringify(item))
+      //       response.write(item)
+      //   //     console.log(`ITEM IS `, item)
+      //       const permlink = Object.keys(item)[0]
+      //       userDocs[permlink] = DocumentViewDto.fromDocumentView(item[permlink])
     }
 
-    return userDocs
+    console.log(`sending done`)
+    response.end()
+    console.log(`sent done`)
   }
 
   @Get('children')

@@ -13,11 +13,12 @@ import { ConfigService } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
-import { DocumentView } from '../../api/resources/document.view'
+import { DocumentView, DocumentViewDto } from '../../api/resources/document.view'
 import Crypto from 'crypto'
 import base64url from 'base64url'
 import { DocCacheService } from './doc-cache.service'
 import { DatabaseMaintService } from './database-maint.service'
+import _ from 'lodash'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw147fikhkjs9qysmv6dkdsu5i6zbgk4x9p47gt9uedru1755y76dg',
@@ -107,7 +108,7 @@ export class CoreService {
    * @param {String} id
    * @returns
    */
-  async getChildrenIds(id) {
+  async getDocChildrenIds(id) {
     const docs = this.graphDocs.find({
       parent_id: id,
     })
@@ -126,7 +127,7 @@ export class CoreService {
    * @param {Object} content
    * @returns
    */
-  async createPost(content, parent_id: string) {
+  async createDocument(content, parent_id: string) {
     const permlink = base64url.encode(Crypto.randomBytes(6))
     const output = await TileDocument.create(
       this.ceramic,
@@ -166,7 +167,7 @@ export class CoreService {
    * @param content
    * @returns
    */
-  async updatePost(streamId, content) {
+  async updateDocument(streamId, content) {
     const tileDoc = await TileDocument.load(this.ceramic, streamId)
     const curDoc = tileDoc.content
     curDoc['content'] = content
@@ -191,15 +192,15 @@ export class CoreService {
    * @todo Move API to client side only writes. Refactor current (centralized) test API.
    * @param streamId
    */
-  async deletePost(streamId) {}
+  async deleteDocument(streamId) {}
 
   /**
    * Retrives a post from the indexer.
    * Fetches the post from the network if unavailable.
    * @param {String} stream_id
-   * @returns
+   * @returns the requested document
    */
-  async getPost(stream_id: string): Promise<DocumentView> {
+  async getDocument(stream_id: string): Promise<DocumentView> {
     const cachedDoc = await this.graphDocs.findOne({ id: stream_id })
     if (cachedDoc) {
       return {
@@ -257,24 +258,32 @@ export class CoreService {
       { skip, limit },
     )
     for await (const dataInfo of data) {
-      const data = await this.getPost(dataInfo.id)
+      const data = await this.getDocument(dataInfo.id)
       yield data
     }
   }
+
   /**
    * @param creatorId The creator ID of the requested documents
    * @param skip The number of records to skip from the beginning of the results
    * @param limit The max number of records to return
+   * @returns a map of doc permlinks to documents for docs that belong to the specified user id
    */
-  async *getForUser(creatorId: string, skip = 0, limit = 25): AsyncGenerator<DocumentView> {
-    // TODO - build logic to get user doc list from IDX
-    const docIdsFromIdx: string[] = []
+  async *getDocsForUser(creatorId: string, skip = 0, limit = 25): AsyncGenerator<DocumentViewDto> {
+    const linksFromIdx: Record<string, string> = await this.idx.get('rootPosts', creatorId)
 
-    for (const docId of docIdsFromIdx) {
-      const data = await this.getPost(docId)
-      yield data
+    for (const permlink of Object.keys(linksFromIdx)) {
+      const docId = this.ceramicUrlToStreamId(linksFromIdx[permlink])
+      const data = await this.getDocument(docId)
+      const view = DocumentViewDto.fromDocumentView(data, permlink)
+      yield view
     }
   }
+
+  ceramicUrlToStreamId(url: string): string {
+    return _.replace(url, 'ceramic://', '')
+  }
+
   async procSync() {
     const dataDocs = await this.graphDocs
       .find({

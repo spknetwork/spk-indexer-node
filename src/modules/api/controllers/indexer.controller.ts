@@ -35,10 +35,11 @@ export class IndexerApiController {
   public async fetchDocument(
     @Param('documentStreamId') streamId: string,
   ): Promise<DocumentViewDto> {
-    const doc = await indexerContainer.self.getPost(streamId)
+    const doc = await indexerContainer.self.getDocument(streamId)
     return DocumentViewDto.fromDocumentView(doc)
   }
 
+  // TODO - fix api ok response type
   @Get('foruser/userdocuments')
   @ApiOkResponse({ description: 'Documents for the user', type: [DocumentViewDto] })
   @ApiQuery({
@@ -79,8 +80,12 @@ export class IndexerApiController {
     // Fetch user-owned documents
     const userDocs: DocumentViewDto[] = []
 
-    for await (const item of indexerContainer.self.getForUser(userId, recordsToSkip, pageSize)) {
-      userDocs.push(DocumentViewDto.fromDocumentView(item))
+    for await (const item of indexerContainer.self.getDocsForUser(
+      userId,
+      recordsToSkip,
+      pageSize,
+    )) {
+      userDocs.push(item)
     }
 
     return userDocs
@@ -111,7 +116,6 @@ export class IndexerApiController {
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
   ) {
-    console.log(parentId)
     // Validate page parameters
     if (!page) page = 1
     if (!pageSize) pageSize = 25

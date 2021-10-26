@@ -10,9 +10,6 @@ import { SchemaValidatorService } from './schema-validator.service'
 import { randomBytes } from 'crypto'
 import { Ed25519Provider } from 'key-did-provider-ed25519'
 
-// Use localhost for tests so as to not pollute the public test instance with junk data
-process.env.CERAMIC_HOST = 'http://localhost:7007'
-
 describe('schema validator service should operate', () => {
   let service: SchemaValidatorService
   let ceramic: CeramicClient

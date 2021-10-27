@@ -13,13 +13,14 @@ import { ConfigService } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
-import { DocumentView, DocumentViewDto } from '../../api/resources/document.view'
+import { DocumentView } from '../../api/resources/document.view'
 import Crypto from 'crypto'
 import base64url from 'base64url'
 import { DocCacheService } from './doc-cache.service'
 import { DatabaseMaintService } from './database-maint.service'
 import _ from 'lodash'
 import { IDX_ROOT_DOCS_KEY } from '../../../common/constants'
+import { UserDocumentViewDto } from '../../api/resources/user-document.view'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw147fikhkjs9qysmv6dkdsu5i6zbgk4x9p47gt9uedru1755y76dg',
@@ -270,15 +271,18 @@ export class CoreService {
    * @param limit The max number of records to return
    * @returns a map of doc permlinks to documents for docs that belong to the specified user id
    */
-  async *getDocsForUser(creatorId: string, skip = 0, limit = 25): AsyncGenerator<DocumentViewDto> {
+  async *getDocsForUser(
+    creatorId: string,
+    skip = 0,
+    limit = 25,
+  ): AsyncGenerator<UserDocumentViewDto> {
     const linksFromIdx: Record<string, string> = await this.idx.get(IDX_ROOT_DOCS_KEY, creatorId)
 
     const permlinks = Object.keys(linksFromIdx).slice(skip, skip + limit)
 
     for (const permlink of permlinks) {
-      const docId = this.ceramicUrlToStreamId(linksFromIdx[permlink])
-      const data = await this.getDocument(docId)
-      const view = DocumentViewDto.fromDocumentView(data, permlink)
+      const data = await this.getDocument(linksFromIdx[permlink])
+      const view = UserDocumentViewDto.fromDocumentView(data, permlink)
       yield view
     }
   }

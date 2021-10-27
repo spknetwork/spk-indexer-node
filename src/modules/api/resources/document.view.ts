@@ -20,18 +20,13 @@ export class DocumentViewDto {
     description: 'The ID of the creator of this document',
   })
   creatorId: string
-  @ApiProperty({
-    description: 'the permlink of the document',
-  })
-  permlink?: string
 
-  static fromDocumentView(view: DocumentView, permlink?: string): DocumentViewDto {
+  static fromDocumentView(view: DocumentView): DocumentViewDto {
     return {
       streamId: view.stream_id,
       parentId: view.parent_id,
       content: view.content,
       creatorId: view.creator_id,
-      permlink,
     }
   }
 }

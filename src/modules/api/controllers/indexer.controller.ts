@@ -1,8 +1,9 @@
-import { BadRequestException, HttpCode, HttpStatus, Put, Query } from '@nestjs/common'
+import { BadRequestException, HttpCode, HttpStatus, Post, Put, Query } from '@nestjs/common'
 import { Controller, Get, Param } from '@nestjs/common'
 import { ApiAcceptedResponse, ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 import { indexerContainer } from '../indexer-api.module'
 import { DocumentViewDto } from '../resources/document.view'
+import { UserDocumentViewDto } from '../resources/user-document.view'
 
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
@@ -14,8 +15,16 @@ export class IndexerApiController {
   @ApiAcceptedResponse({ description: 'The document was found and indexed' })
   @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
   @HttpCode(HttpStatus.ACCEPTED)
+  public async reindexDocument(@Param('documentStreamId') streamId: string): Promise<void> {
+    void indexerContainer.self.docCacheService.refreshCachedDoc(streamId)
+  }
+
+  @Post('index/:documentStreamId')
+  @ApiAcceptedResponse({ description: 'The document was found and indexed' })
+  @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
+  @HttpCode(HttpStatus.CREATED)
   public async indexDocument(@Param('documentStreamId') streamId: string): Promise<void> {
-    void indexerContainer.self.reindexDocument(streamId)
+    void indexerContainer.self.docCacheService.initializeCachedDoc(streamId)
   }
 
   @Get('documents/:documentStreamId')
@@ -27,12 +36,13 @@ export class IndexerApiController {
   public async fetchDocument(
     @Param('documentStreamId') streamId: string,
   ): Promise<DocumentViewDto> {
-    const doc = await indexerContainer.self.getPost(streamId)
+    const doc = await indexerContainer.self.getDocument(streamId)
     return DocumentViewDto.fromDocumentView(doc)
   }
 
+  // TODO - fix api ok response type
   @Get('foruser/userdocuments')
-  @ApiOkResponse({ description: 'Documents for the user', type: [DocumentViewDto] })
+  @ApiOkResponse({ description: 'Documents for the user', type: [UserDocumentViewDto] })
   @ApiQuery({
     name: 'userId',
     required: true,
@@ -69,10 +79,14 @@ export class IndexerApiController {
 
     // Process request
     // Fetch user-owned documents
-    const userDocs: DocumentViewDto[] = []
+    const userDocs: UserDocumentViewDto[] = []
 
-    for await (const item of indexerContainer.self.getForUser(userId, recordsToSkip, pageSize)) {
-      userDocs.push(DocumentViewDto.fromDocumentView(item))
+    for await (const item of indexerContainer.self.getDocsForUser(
+      userId,
+      recordsToSkip,
+      pageSize,
+    )) {
+      userDocs.push(item)
     }
 
     return userDocs
@@ -103,7 +117,6 @@ export class IndexerApiController {
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
   ) {
-    console.log(parentId)
     // Validate page parameters
     if (!page) page = 1
     if (!pageSize) pageSize = 25

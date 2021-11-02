@@ -8,15 +8,19 @@ import { IDX } from '@ceramicstudio/idx'
 import { ObjectId } from 'bson'
 import { CustodianService } from './custodian.service'
 import { PostSpiderService } from './post-spider.service'
-import { RepoManager } from '../../mongo-access/services/repo-manager.service'
 import { SchemaValidatorService } from '../../schema-validator/services/schema-validator.service'
 import { ConfigService } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
-import { DocumentView, DocumentViewDto } from '../../api/resources/document.view'
+import { DocumentView } from '../../api/resources/document.view'
 import Crypto from 'crypto'
 import base64url from 'base64url'
+import { DocCacheService } from './doc-cache.service'
+import { DatabaseMaintService } from './database-maint.service'
+import _ from 'lodash'
+import { IDX_ROOT_DOCS_KEY } from '../../../common/constants'
+import { UserDocumentViewDto } from '../../api/resources/user-document.view'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw147fikhkjs9qysmv6dkdsu5i6zbgk4x9p47gt9uedru1755y76dg',
@@ -30,10 +34,11 @@ export class CoreService {
   idx: IDX
   postSpider: PostSpiderService
   schemaValidator: SchemaValidatorService
+  docCacheService: DocCacheService
 
   constructor(readonly ceramic: CeramicClient, public readonly mongoClient: MongoClient) {
-    const repoManager = new RepoManager(mongoClient)
-    this.schemaValidator = new SchemaValidatorService(this.ceramic, repoManager)
+    this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
+    this.docCacheService = new DocCacheService(ceramic, this)
   }
 
   public async getAllIndexes() {
@@ -86,33 +91,18 @@ export class CoreService {
   }
 
   /**
-   * @param streamId stream ID of ceramic document to retrieve and reindex
+   * @description Create a node in the graph index for a new document
    */
-  public async reindexDocument(streamId: string): Promise<DocumentViewDto> {
-    const tileDoc = await TileDocument.load(this.ceramic, streamId)
-
-    // TODO - figure out if we need a different method for the first time indexing a document vs reindexing a document
-    // Possibly in the first time indexing document, build the graph index, and in the reindex, don't?
-    const res = await this.graphDocs.findOneAndUpdate(
-      {
-        id: tileDoc.id.toString(),
-      },
-      {
-        $set: {
-          version_id: tileDoc.tip.toString(),
-          last_updated: new Date(),
-          last_pinged: new Date(),
-          content: tileDoc.content,
-        },
-      },
-    )
-
-    return {
-      streamId,
-      parentId: res.value.parent_id,
-      content: res.value.content,
-      creatorId: tileDoc.controllers[0],
-    }
+  public async initGraphIndexNode(streamId: string, parentId?: string) {
+    await this.graphIndex.insertOne({
+      _id: new ObjectId(),
+      id: streamId,
+      parent_id: parentId,
+      expiration: null,
+      first_seen: new Date(),
+      last_pinged: new Date(),
+      last_pulled: new Date(),
+    })
   }
 
   /**
@@ -120,7 +110,7 @@ export class CoreService {
    * @param {String} id
    * @returns
    */
-  async getChildrenIds(id) {
+  async getDocChildrenIds(id) {
     const docs = this.graphDocs.find({
       parent_id: id,
     })
@@ -139,7 +129,7 @@ export class CoreService {
    * @param {Object} content
    * @returns
    */
-  async createPost(content, parent_id: string) {
+  async createDocument(content, parent_id: string) {
     const permlink = base64url.encode(Crypto.randomBytes(6))
     const output = await TileDocument.create(
       this.ceramic,
@@ -179,7 +169,7 @@ export class CoreService {
    * @param content
    * @returns
    */
-  async updatePost(streamId, content) {
+  async updateDocument(streamId, content) {
     const tileDoc = await TileDocument.load(this.ceramic, streamId)
     const curDoc = tileDoc.content
     curDoc['content'] = content
@@ -204,15 +194,15 @@ export class CoreService {
    * @todo Move API to client side only writes. Refactor current (centralized) test API.
    * @param streamId
    */
-  async deletePost(streamId) {}
+  async deleteDocument(streamId) {}
 
   /**
    * Retrives a post from the indexer.
    * Fetches the post from the network if unavailable.
    * @param {String} stream_id
-   * @returns
+   * @returns the requested document
    */
-  async getPost(stream_id: string): Promise<DocumentView> {
+  async getDocument(stream_id: string): Promise<DocumentView> {
     const cachedDoc = await this.graphDocs.findOne({ id: stream_id })
     if (cachedDoc) {
       return {
@@ -270,24 +260,37 @@ export class CoreService {
       { skip, limit },
     )
     for await (const dataInfo of data) {
-      const data = await this.getPost(dataInfo.id)
+      const data = await this.getDocument(dataInfo.id)
       yield data
     }
   }
+
   /**
    * @param creatorId The creator ID of the requested documents
    * @param skip The number of records to skip from the beginning of the results
    * @param limit The max number of records to return
+   * @returns a map of doc permlinks to documents for docs that belong to the specified user id
    */
-  async *getForUser(creatorId: string, skip = 0, limit = 25): AsyncGenerator<DocumentView> {
-    // TODO - build logic to get user doc list from IDX
-    const docIdsFromIdx: string[] = []
+  async *getDocsForUser(
+    creatorId: string,
+    skip = 0,
+    limit = 25,
+  ): AsyncGenerator<UserDocumentViewDto> {
+    const linksFromIdx: Record<string, string> = await this.idx.get(IDX_ROOT_DOCS_KEY, creatorId)
 
-    for (const docId of docIdsFromIdx) {
-      const data = await this.getPost(docId)
-      yield data
+    const permlinks = Object.keys(linksFromIdx).slice(skip, skip + limit)
+
+    for (const permlink of permlinks) {
+      const data = await this.getDocument(linksFromIdx[permlink])
+      const view = UserDocumentViewDto.fromDocumentView(data, permlink)
+      yield view
     }
   }
+
+  ceramicUrlToStreamId(url: string): string {
+    return _.replace(url, 'ceramic://', '')
+  }
+
   async procSync() {
     const dataDocs = await this.graphDocs
       .find({
@@ -360,10 +363,10 @@ export class CoreService {
   }
 
   async start() {
-    this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
-
+    // Init collections and indexes
     this.graphDocs = this.db.collection(MongoCollections.IndexedDocs)
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
+    await DatabaseMaintService.createIndexes(this)
 
     this._threeId = await ThreeIdProvider.create({
       ceramic: this.ceramic,

@@ -141,6 +141,64 @@ export class IndexerApiController {
     return children
   }
 
+  @Get('feed')
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'pageSize',
+    required: false,
+    type: Number,
+  })
+  public async getFeed(
+    @Query('page') page?: number | string,
+    @Query('pageSize') pageSize?: number | string,
+  ) {
+    // Validate page parameters
+    if (!page) page = 1
+    if (!pageSize) pageSize = 25
+
+    page = parseInt(page.toString(), 10)
+    pageSize = parseInt(pageSize.toString(), 10)
+    if (isNaN(page) || isNaN(pageSize))
+      throw new BadRequestException('Both page and pageSize must be integers!')
+
+    if (page < 1) throw new BadRequestException("'page' must be greater than or equal to 1")
+    if (pageSize < 1) throw new BadRequestException("'pageSize' must be greater than or equal to 1")
+
+    const recordsToSkip = IndexerApiController.calculateSkip(pageSize, page)
+
+    const data = await indexerContainer.self.graphDocs
+      .find(
+        {},
+        {
+          skip: recordsToSkip,
+          limit: pageSize,
+          sort: {
+            first_seen: -1,
+          },
+        },
+      )
+      .toArray()
+
+    const out = data.map((e) => {
+      delete e._id
+
+      return {
+        id: e.id,
+        content: e.content,
+        parent_id: e.parent_id,
+        first_seen: e.first_seen,
+        last_updated: e.last_updated,
+        creator_id: e.creator_id,
+        version_id: e.version_id,
+      }
+    })
+
+    return out
+  }
   static calculateSkip(size: number | string, page: number | string): number {
     size = parseInt(size.toString(), 10)
     page = parseInt(page.toString(), 10)

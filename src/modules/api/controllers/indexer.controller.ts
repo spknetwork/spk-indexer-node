@@ -3,7 +3,6 @@ import { Controller, Get, Param } from '@nestjs/common'
 import { ApiAcceptedResponse, ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 import { indexerContainer } from '../indexer-api.module'
 import { DocumentViewDto } from '../resources/document.view'
-import { UserDocumentViewDto } from '../resources/user-document.view'
 
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
@@ -40,9 +39,8 @@ export class IndexerApiController {
     return DocumentViewDto.fromDocumentView(doc)
   }
 
-  // TODO - fix api ok response type
   @Get('foruser/userdocuments')
-  @ApiOkResponse({ description: 'Documents for the user', type: [UserDocumentViewDto] })
+  @ApiOkResponse({ description: 'Documents for the user', type: [DocumentViewDto] })
   @ApiQuery({
     name: 'userId',
     required: true,
@@ -79,7 +77,7 @@ export class IndexerApiController {
 
     // Process request
     // Fetch user-owned documents
-    const userDocs: UserDocumentViewDto[] = []
+    const userDocs: DocumentViewDto[] = []
 
     for await (const item of indexerContainer.self.getDocsForUser(
       userId,

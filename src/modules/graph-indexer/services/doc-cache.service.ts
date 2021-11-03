@@ -35,6 +35,11 @@ export class DocCacheService {
   public async initializeCachedDoc(streamId: string): Promise<void> {
     const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId)
 
+    // Assign creator ID as the first controller on the document
+    const creatorId = tileDoc.controllers[0]
+
+    // TODO - come up with a way to keep created_at deterministic across all nodes
+
     await this.core.graphDocs.insertOne({
       id: streamId,
       content: tileDoc.content.content,
@@ -46,6 +51,7 @@ export class DocCacheService {
       pinned: true,
       parent_id: tileDoc.content.parent_id,
       version_id: tileDoc.tip.toString(),
+      creator_id: creatorId,
     })
 
     await this.core.initGraphIndexNode(streamId, tileDoc.content.parent_id)

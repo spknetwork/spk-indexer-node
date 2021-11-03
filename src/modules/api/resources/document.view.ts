@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
+import { IndexedDocument } from '../../graph-indexer/graph-indexer.model'
 
 export class DocumentViewDto {
   @ApiProperty({
@@ -29,13 +30,20 @@ export class DocumentViewDto {
       creatorId: view.creator_id,
     }
   }
+
+  static fromIndexedDocument(doc: IndexedDocument): DocumentViewDto {
+    return {
+      streamId: doc.id,
+      parentId: doc.parent_id,
+      content: doc.content,
+      creatorId: doc.creator_id,
+    }
+  }
 }
 
 export interface DocumentView {
   stream_id: string
-
   parent_id?: string
-
   content: any
   creator_id: string
 }

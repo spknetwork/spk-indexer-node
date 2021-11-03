@@ -33,7 +33,7 @@ export class IndexerApiModule {
   }
 
   public async listen() {
-    const app = await NestFactory.create(ControllerModule)
+    const app = await NestFactory.create(ControllerModule, { cors: true })
 
     const swaggerconfig = new DocumentBuilder().setTitle('SPK Indexer Daemon').build()
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerconfig)

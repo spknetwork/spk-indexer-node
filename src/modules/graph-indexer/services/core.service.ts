@@ -277,8 +277,7 @@ export class CoreService {
     limit = 25,
   ): AsyncGenerator<UserDocumentViewDto> {
     const linksFromIdx: Record<string, string> = await this.idx.get(IDX_ROOT_DOCS_KEY, creatorId)
-
-    const permlinks = Object.keys(linksFromIdx).slice(skip, skip + limit)
+    const permlinks = Object.keys(linksFromIdx || {}).slice(skip, skip + limit)
 
     for (const permlink of permlinks) {
       const data = await this.getDocument(linksFromIdx[permlink])

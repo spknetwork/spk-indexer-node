@@ -38,12 +38,10 @@ export class DocCacheService {
     // Assign creator ID as the first controller on the document
     const creatorId = tileDoc.controllers[0]
 
-    // TODO - come up with a way to keep created_at deterministic across all nodes
-
     await this.core.graphDocs.insertOne({
       id: streamId,
       content: tileDoc.content.content,
-      created_at: new Date(),
+      created_at: tileDoc.content.created_at,
       expire: null,
       first_seen: new Date(),
       last_updated: new Date(),

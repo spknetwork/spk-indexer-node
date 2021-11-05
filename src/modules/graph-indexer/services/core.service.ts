@@ -208,6 +208,7 @@ export class CoreService {
         stream_id: cachedDoc.id,
         parent_id: cachedDoc.parent_id,
         content: cachedDoc.content,
+        created_at: cachedDoc.created_at,
       }
     } else {
       const tileDoc = await TileDocument.load(this.ceramic, stream_id)
@@ -240,6 +241,7 @@ export class CoreService {
         parent_id: tileDoc.state.content.parent_id,
         stream_id: stream_id,
         content: (tileDoc.content as any).content, //this is probably not safe longterm.
+        created_at,
       }
     }
   }

@@ -19,6 +19,8 @@ import base64url from 'base64url'
 import { DocCacheService } from './doc-cache.service'
 import { DatabaseMaintService } from './database-maint.service'
 import _ from 'lodash'
+import { UserDocumentViewDto } from '../../api/resources/user-document.view'
+import { IDX_ROOT_DOCS_KEY } from '../../../common/constants'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw147fikhkjs9qysmv6dkdsu5i6zbgk4x9p47gt9uedru1755y76dg',
@@ -286,6 +288,22 @@ export class CoreService {
     )
     for await (const doc of cursor) {
       yield DocumentViewDto.fromIndexedDocument(doc)
+    }
+  }
+
+  // May want to eliminate this function
+  async *getDocsForUserFromIdx(
+    creatorId: string,
+    skip = 0,
+    limit = 25,
+  ): AsyncGenerator<UserDocumentViewDto> {
+    const linksFromIdx: Record<string, string> = await this.idx.get(IDX_ROOT_DOCS_KEY, creatorId)
+    const permlinks = Object.keys(linksFromIdx || {}).slice(skip, skip + limit)
+
+    for (const permlink of permlinks) {
+      const data = await this.getDocument(linksFromIdx[permlink])
+      const view = UserDocumentViewDto.fromDocumentView(data, permlink)
+      yield view
     }
   }
 

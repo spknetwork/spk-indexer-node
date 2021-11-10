@@ -85,7 +85,7 @@ export interface CeramicContainer {
 
 export enum DocSortOption {
   createdasc = 'createdasc',
-  createddesc = 'createdasc',
+  createddesc = 'createddesc',
   updatedasc = 'updatedasc',
   updateddesc = 'updateddesc',
 }

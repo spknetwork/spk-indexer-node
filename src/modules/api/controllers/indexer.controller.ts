@@ -57,10 +57,16 @@ export class IndexerApiController {
     required: false,
     type: Number,
   })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    type: String,
+  })
   public async getDocumentsForUser(
     @Query('userId') userId: string,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
+    @Query('sort') sort?: DocSortOption,
   ) {
     // Validate page parameters
     if (!page) page = 1
@@ -84,6 +90,7 @@ export class IndexerApiController {
       userId,
       recordsToSkip,
       pageSize,
+      sort,
     )) {
       userDocs.push(item)
     }
@@ -143,6 +150,7 @@ export class IndexerApiController {
       parentId,
       recordsToSkip,
       pageSize,
+      sort,
     )) {
       children.push(item)
     }

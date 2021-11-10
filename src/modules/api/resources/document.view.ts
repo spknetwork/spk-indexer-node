@@ -27,6 +27,11 @@ export class DocumentViewDto {
   })
   createdAt: Date
 
+  @ApiProperty({
+    description: 'When the document was updated in ceramic',
+  })
+  updatedAt: Date
+
   static fromDocumentView(view: DocumentView): DocumentViewDto {
     return {
       streamId: view.stream_id,
@@ -34,6 +39,7 @@ export class DocumentViewDto {
       content: view.content,
       creatorId: view.creator_id,
       createdAt: view.created_at,
+      updatedAt: view.updated_at,
     }
   }
 
@@ -44,6 +50,7 @@ export class DocumentViewDto {
       content: doc.content,
       creatorId: doc.creator_id,
       createdAt: doc.created_at,
+      updatedAt: doc.updated_at,
     }
   }
 }
@@ -54,4 +61,5 @@ export interface DocumentView {
   content: any
   creator_id: string
   created_at: Date
+  updated_at: Date
 }

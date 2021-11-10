@@ -26,6 +26,7 @@ export class IndexedDocument implements SpkCollectionItem {
   schema_stream_id?: string
   first_seen: Date
   created_at?: Date
+  updated_at?: Date
   last_updated: Date // Note this is our internal calculated value, this may or may not actually be when it was updated in the Ceramic document. TODO: Use Ceramic timestamps
   last_pinged: Date //Last time the document was checked
   last_accessed?: Date //Maybe a bit too IO intensive?
@@ -80,4 +81,18 @@ export interface CeramicContainer {
   app?: string //App specific metadata
   family?: string // Schema validation?
   type: string //SPK.network format
+}
+
+export enum DocSortOption {
+  createdasc = 'createdasc',
+  createddesc = 'createdasc',
+  updatedasc = 'updatedasc',
+  updateddesc = 'updateddesc',
+}
+
+export interface CeramicDocContent {
+  parent_id?: string
+  created_at: string
+  updated_at: string
+  content: unknown
 }

@@ -44,9 +44,19 @@ async function startup(): Promise<void> {
 void startup()
 
 // Process-wide exception handlers:
-//I want to let major errors crash the program so it can be restarted..
-//Right now when errors are thrown they don't cause a fail state and the entire daemon goes into limbo state.
 //TODO: Figure out where and why ceramic cannot recovery from errors. How to handle ceramic temporarily failing.
-/*process.on('unhandledRejection', (error: Error) => {
-  console.log('unhandledRejection', error.message)
-})*/
+process.on('unhandledRejection', (err: Error) => {
+  logger.error(`Unhandled rejection!`)
+  logger.error(err.message)
+  logger.error(err.stack)
+  logger.error(`Halting process with error code 1.`)
+  process.exit(1)
+})
+
+process.on('uncaughtException', (err: Error) => {
+  logger.error(`Uncaught exception!`)
+  logger.error(err.message)
+  logger.error(err.stack)
+  logger.error(`Halting process with error code 1.`)
+  process.exit(1)
+})

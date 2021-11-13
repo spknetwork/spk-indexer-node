@@ -25,4 +25,4 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
-          script: ls
+          script: cd spk-indexer-node; sh deploy.sh

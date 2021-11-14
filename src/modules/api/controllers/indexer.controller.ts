@@ -1,9 +1,9 @@
 import { BadRequestException, HttpCode, HttpStatus, Post, Put, Query } from '@nestjs/common'
 import { Controller, Get, Param } from '@nestjs/common'
 import { ApiAcceptedResponse, ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
+import { DocSortOption } from '../../graph-indexer/graph-indexer.model'
 import { indexerContainer } from '../indexer-api.module'
 import { DocumentViewDto } from '../resources/document.view'
-import { UserDocumentViewDto } from '../resources/user-document.view'
 
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
@@ -36,13 +36,12 @@ export class IndexerApiController {
   public async fetchDocument(
     @Param('documentStreamId') streamId: string,
   ): Promise<DocumentViewDto> {
-    const doc = await indexerContainer.self.getDocument(streamId)
+    const doc = await indexerContainer.self.docCacheService.getDocument(streamId)
     return DocumentViewDto.fromDocumentView(doc)
   }
 
-  // TODO - fix api ok response type
   @Get('foruser/userdocuments')
-  @ApiOkResponse({ description: 'Documents for the user', type: [UserDocumentViewDto] })
+  @ApiOkResponse({ description: 'Documents for the user', type: [DocumentViewDto] })
   @ApiQuery({
     name: 'userId',
     required: true,
@@ -58,10 +57,16 @@ export class IndexerApiController {
     required: false,
     type: Number,
   })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    type: String,
+  })
   public async getDocumentsForUser(
     @Query('userId') userId: string,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
+    @Query('sort') sort?: DocSortOption,
   ) {
     // Validate page parameters
     if (!page) page = 1
@@ -79,12 +84,13 @@ export class IndexerApiController {
 
     // Process request
     // Fetch user-owned documents
-    const userDocs: UserDocumentViewDto[] = []
+    const userDocs: DocumentViewDto[] = []
 
-    for await (const item of indexerContainer.self.getDocsForUser(
+    for await (const item of indexerContainer.self.docCacheService.getDocsForUser(
       userId,
       recordsToSkip,
       pageSize,
+      sort,
     )) {
       userDocs.push(item)
     }
@@ -112,10 +118,16 @@ export class IndexerApiController {
     required: false,
     type: Number,
   })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    type: String,
+  })
   public async getChildren(
     @Query('parentId') parentId: string,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
+    @Query('sort') sort?: DocSortOption,
   ) {
     // Validate page parameters
     if (!page) page = 1
@@ -134,8 +146,13 @@ export class IndexerApiController {
     // Fetch child documents
     const children: DocumentViewDto[] = []
 
-    for await (const item of indexerContainer.self.getChildren(parentId, recordsToSkip, pageSize)) {
-      children.push(DocumentViewDto.fromDocumentView(item))
+    for await (const item of indexerContainer.self.docCacheService.getDocChildren(
+      parentId,
+      recordsToSkip,
+      pageSize,
+      sort,
+    )) {
+      children.push(item)
     }
 
     return children

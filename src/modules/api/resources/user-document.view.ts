@@ -13,6 +13,8 @@ export class UserDocumentViewDto extends DocumentViewDto {
       parentId: view.parent_id,
       content: view.content,
       creatorId: view.creator_id,
+      createdAt: view.created_at,
+      updatedAt: view.updated_at,
       permlink,
     }
   }

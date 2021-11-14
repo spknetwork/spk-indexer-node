@@ -3,6 +3,14 @@ import { CoreService } from './core.service'
 
 export class DatabaseMaintService {
   static async createIndexes(core: CoreService) {
+    logger.info('Creating Mongo indexes...')
+    await this.createPkIndexes(core)
+    await this.createDateIndexes(core)
+
+    logger.info('Finished creating Mongo indexes')
+  }
+
+  static async createPkIndexes(core: CoreService) {
     await core.graphDocs.createIndex(
       {
         id: 1,
@@ -11,7 +19,15 @@ export class DatabaseMaintService {
     )
 
     await core.graphIndex.createIndex({ id: 1 }, { unique: true })
+  }
 
-    logger.info('Mongo indexes initialized')
+  static async createDateIndexes(core: CoreService) {
+    await core.graphDocs.createIndex({
+      created_at: -1,
+    })
+
+    await core.graphIndex.createIndex({
+      first_seen: -1,
+    })
   }
 }

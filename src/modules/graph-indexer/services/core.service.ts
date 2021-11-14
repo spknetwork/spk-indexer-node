@@ -1,7 +1,6 @@
 import ThreeIdProvider from '3id-did-provider'
 import { CeramicClient } from '@ceramicnetwork/http-client'
 import { MongoClient, Db, Collection } from 'mongodb'
-import { TileDocument } from '@ceramicnetwork/stream-tile'
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver'
 import { DID } from 'dids'
 import { IDX } from '@ceramicstudio/idx'
@@ -13,14 +12,9 @@ import { ConfigService } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
-import { DocumentView } from '../../api/resources/document.view'
-import Crypto from 'crypto'
-import base64url from 'base64url'
 import { DocCacheService } from './doc-cache.service'
 import { DatabaseMaintService } from './database-maint.service'
-import _ from 'lodash'
-import { IDX_ROOT_DOCS_KEY } from '../../../common/constants'
-import { UserDocumentViewDto } from '../../api/resources/user-document.view'
+import { logger } from '../../../common/logger.singleton'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw147fikhkjs9qysmv6dkdsu5i6zbgk4x9p47gt9uedru1755y76dg',
@@ -123,173 +117,6 @@ export class CoreService {
     return out
   }
 
-  /**
-   * Creates a post on the indexer.
-   * @todo Move API to client side only writes. Refactor current (centralized) test API.
-   * @param {Object} content
-   * @returns
-   */
-  async createDocument(content, parent_id: string) {
-    const permlink = base64url.encode(Crypto.randomBytes(6))
-    const output = await TileDocument.create(
-      this.ceramic,
-      {
-        parent_id: parent_id,
-        content,
-      },
-      { tags: ['spk_network'], controllers: [this.ceramic.did.id] },
-      { anchor: true, publish: false },
-    )
-    let dataRecord = await this.idx.get('rootPosts', this.ceramic.did.id)
-    if (dataRecord) {
-      dataRecord[permlink] = output.id.toUrl()
-    } else {
-      dataRecord = {
-        [permlink]: output.id.toUrl(),
-      }
-    }
-    await this.idx.set('rootPosts', dataRecord)
-    await this.graphDocs.insertOne({
-      id: output.id.toString(),
-      content,
-      created_at: new Date(),
-      expire: null,
-      first_seen: new Date(),
-      last_updated: new Date(),
-      last_pinged: new Date(),
-      pinned: true,
-      parent_id: parent_id,
-    })
-    return output.id.toString()
-  }
-
-  /**
-   * @todo Move API to client side only writes. Refactor current (centralized) test API.
-   * @param streamId
-   * @param content
-   * @returns
-   */
-  async updateDocument(streamId, content) {
-    const tileDoc = await TileDocument.load(this.ceramic, streamId)
-    const curDoc = tileDoc.content
-    curDoc['content'] = content
-    await tileDoc.update(curDoc, null, { anchor: true })
-
-    await this.graphDocs.findOneAndUpdate(
-      {
-        id: tileDoc.id.toString(),
-      },
-      {
-        $set: {
-          version_id: tileDoc.tip.toString(),
-          last_updated: new Date(),
-          last_pinged: new Date(),
-        },
-      },
-    )
-    return content
-  }
-  /**
-   * Announces a BOGON to the network and deletes the post from the database
-   * @todo Move API to client side only writes. Refactor current (centralized) test API.
-   * @param streamId
-   */
-  async deleteDocument(streamId) {}
-
-  /**
-   * Retrives a post from the indexer.
-   * Fetches the post from the network if unavailable.
-   * @param {String} stream_id
-   * @returns the requested document
-   */
-  async getDocument(stream_id: string): Promise<DocumentView> {
-    const cachedDoc = await this.graphDocs.findOne({ id: stream_id })
-    if (cachedDoc) {
-      return {
-        creator_id: cachedDoc.creator_id,
-        stream_id: cachedDoc.id,
-        parent_id: cachedDoc.parent_id,
-        content: cachedDoc.content,
-      }
-    } else {
-      const tileDoc = await TileDocument.load(this.ceramic, stream_id)
-      const creator_id = tileDoc.metadata.controllers[0]
-      const nextContent = (tileDoc.content as any).content
-
-      let created_at
-      const logHistory = tileDoc.state.log
-      for (const logEntry of logHistory) {
-        if (logEntry.type === 2) {
-          created_at = new Date(logEntry.timestamp * 1000)
-          break
-        }
-      }
-      await this.graphDocs.insertOne({
-        id: stream_id,
-        parent_id: tileDoc.state.content.parent_id,
-        content: nextContent,
-        created_at,
-        expire: null,
-        first_seen: new Date(),
-        last_updated: new Date(),
-        last_pinged: new Date(),
-        version_id: tileDoc.tip.toString(),
-        creator_id: creator_id,
-        pinned: false,
-      })
-      return {
-        creator_id: creator_id,
-        parent_id: tileDoc.state.content.parent_id,
-        stream_id: stream_id,
-        content: (tileDoc.content as any).content, //this is probably not safe longterm.
-      }
-    }
-  }
-  /**
-   * @param id The parent ID for which to retrive a list of child documents
-   * @param skip The number of records to skip from the beginning of the results
-   * @param limit The max number of records to return
-   */
-  async *getChildren(id: string, skip = 0, limit = 25): AsyncGenerator<DocumentView> {
-    //todo: only transverse every few minutes and not on every request.
-    void this.custodianSystem.transverseChildren(id)
-    const data = this.graphIndex.find(
-      {
-        parent_id: id,
-      },
-      { skip, limit },
-    )
-    for await (const dataInfo of data) {
-      const data = await this.getDocument(dataInfo.id)
-      yield data
-    }
-  }
-
-  /**
-   * @param creatorId The creator ID of the requested documents
-   * @param skip The number of records to skip from the beginning of the results
-   * @param limit The max number of records to return
-   * @returns a map of doc permlinks to documents for docs that belong to the specified user id
-   */
-  async *getDocsForUser(
-    creatorId: string,
-    skip = 0,
-    limit = 25,
-  ): AsyncGenerator<UserDocumentViewDto> {
-    const linksFromIdx: Record<string, string> = await this.idx.get(IDX_ROOT_DOCS_KEY, creatorId)
-    const permlinks = Object.keys(linksFromIdx || {}).slice(skip, skip + limit)
-
-    for (const permlink of permlinks) {
-      const data = await this.getDocument(linksFromIdx[permlink])
-      const view = UserDocumentViewDto.fromDocumentView(data, permlink)
-      yield view
-    }
-  }
-
-  ceramicUrlToStreamId(url: string): string {
-    return _.replace(url, 'ceramic://', '')
-  }
-
   async procSync() {
     const dataDocs = await this.graphDocs
       .find({
@@ -362,6 +189,8 @@ export class CoreService {
   }
 
   async start() {
+    logger.info(`Starting core service...`)
+
     // Init collections and indexes
     this.graphDocs = this.db.collection(MongoCollections.IndexedDocs)
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
@@ -386,8 +215,7 @@ export class CoreService {
     })
     await did.authenticate()
     await this.ceramic.setDID(did)
-    console.log(this._threeId.getDidProvider())
-    console.log(did.id)
+    logger.info(`Node DID: ${did.id}`)
     this.idx = new IDX({
       autopin: true,
       ceramic: this.ceramic,

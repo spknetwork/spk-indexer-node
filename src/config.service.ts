@@ -4,6 +4,7 @@ export interface IndexerAppConfig {
   ceramicHost: string
   ipfsHost: string
   apiListenPort: number
+  testMode: boolean
 }
 
 export class ConfigService {
@@ -27,6 +28,7 @@ export class ConfigService {
       ceramicHost: process.env.CERAMIC_HOST || 'https://ceramic-clay.3boxlabs.com',
       ipfsHost: process.env.IPFS_HOST || 'localhost:5001',
       apiListenPort,
+      testMode: process.env.TEST_MODE === 'true',
     }
   }
 }

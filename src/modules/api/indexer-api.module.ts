@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { IPFSHTTPClient } from 'ipfs-http-client'
+import { ConfigService } from '../../config.service'
 import { CoreService } from '../graph-indexer/services/core.service'
 import { DebugApiController } from './controllers/debug.controller'
 import { HealthApiController } from './controllers/health.controller'
@@ -33,7 +34,9 @@ export class IndexerApiModule {
   }
 
   public async listen() {
-    const app = await NestFactory.create(ControllerModule)
+    const app = await NestFactory.create(ControllerModule, {
+      cors: ConfigService.getConfig().testMode,
+    })
 
     const swaggerconfig = new DocumentBuilder().setTitle('SPK Indexer Daemon').build()
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerconfig)

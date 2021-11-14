@@ -1,13 +1,39 @@
 version: "3.3"
 
 services:
-  auto_deploy_docker: # name of the service
-    image: auto-deploy-docker # the image to use
-    container_name: auto-deploy-docker # what to label the container for docker ps
+  spk-indexer-node: # name of the service
+    image: spk-indexer-node # the image to use
+    container_name: spk-indexer-node # what to label the container for docker ps
     ports:
-      - 3055:3055 # note, we're mapping to port 80 instead of 5000 because we'll use 80 on the VPS
-    restart: unless-stopped # restart if failed, until we stop it ourselves
+      - 4567:4567 # note, we're mapping to port 80 instead of 5000 because we'll use 80 on the VPS
+    restart: always # restart if failed, until we stop it ourselves
+    links:
+      - mongo
+    #external_links:
+      #- mongo
+    depends_on:
+      - mongo
+      - ipfs
+    networks:
+      - spk-indexer-network
+    environment:
+      MONGO_HOST: mongo:27017
+      IPFS_HOST: ipfs:5001
   mongo:
+    container_name: mongo
     image: mongo:latest
     ports:
       - 27027:27017
+    networks:
+      - spk-indexer-network
+  ipfs:
+    container_name: ipfs
+    image: ipfs/go-ipfs:latest
+    command:
+      - daemon
+      - --enable-pubsub-experiment
+    networks:
+      - spk-indexer-network
+networks:
+  spk-indexer-network:
+    driver: bridge

@@ -3,11 +3,11 @@ echo "Deploying changes..."
 git pull
 
 # Build the image with the new changes
-docker build . -t auto-deploy-docker
+docker build . -t spk-indexer-node
 
 # Shut down the existing containers
 docker-compose down
 
 # Start the new containers
-docker-compose up -d
+docker-compose up -d  --remove-orphans
 echo "Deployed!"

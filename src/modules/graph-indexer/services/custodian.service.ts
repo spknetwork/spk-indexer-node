@@ -12,6 +12,7 @@ import { CSNode, IndexedNode } from '../graph-indexer.model'
 import { SUBChannels, messageTypes } from '../../peer-to-peer/p2p.model'
 import { CoreService } from './core.service'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
+import { ConfigService } from '../../../config.service'
 
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 
@@ -279,7 +280,7 @@ export class CustodianService {
   async start() {
     this.graphIndex = this.self.db.collection('graph.index')
     this.graphCs = this.self.db.collection('graph.cs')
-    this.ipfs = IPFSHTTP.create()
+    this.ipfs = IPFSHTTP.create({ host: ConfigService.getConfig().ipfsHost })
 
     this.myPeerId = (await this.ipfs.id()).id
     void this.ipfs.pubsub.subscribe(IPFS_PUBSUB_TOPIC, this.handleSub)

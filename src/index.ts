@@ -1,7 +1,7 @@
 import CeramicHTTP from '@ceramicnetwork/http-client'
 import { MongoClient } from 'mongodb'
 import { ConfigService } from './config.service'
-import IPFSHTTP from 'ipfs-http-client'
+import { create as createIpfs } from 'ipfs-http-client'
 
 import { CoreService } from './modules/graph-indexer/services/core.service'
 import { IndexerApiModule } from './modules/api/indexer-api.module'
@@ -30,7 +30,7 @@ async function startup(): Promise<void> {
   // Start API
   const IPFS_HOST = ConfigService.getConfig().ipfsHost
   const API_LISTEN_PORT = ConfigService.getConfig().apiListenPort
-  const ipfs = IPFSHTTP.create({ host: IPFS_HOST })
+  const ipfs = createIpfs({ host: IPFS_HOST })
   const api = new IndexerApiModule(ipfs, API_LISTEN_PORT, instance)
   await api.listen()
 

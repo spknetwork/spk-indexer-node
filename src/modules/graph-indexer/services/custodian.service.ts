@@ -1,5 +1,5 @@
 import { StreamID } from '@ceramicnetwork/streamid'
-import IPFSHTTP, { IPFSHTTPClient } from 'ipfs-http-client'
+import { IPFSHTTPClient, create as createIpfs } from 'ipfs-http-client'
 import { Collection } from 'mongodb'
 import NodeSchedule from 'node-schedule'
 import Path from 'path'
@@ -280,7 +280,7 @@ export class CustodianService {
   async start() {
     this.graphIndex = this.self.db.collection('graph.index')
     this.graphCs = this.self.db.collection('graph.cs')
-    this.ipfs = IPFSHTTP.create({ host: ConfigService.getConfig().ipfsHost })
+    this.ipfs = createIpfs({ host: ConfigService.getConfig().ipfsHost })
 
     this.myPeerId = (await this.ipfs.id()).id
     void this.ipfs.pubsub.subscribe(IPFS_PUBSUB_TOPIC, this.handleSub)

@@ -1,18 +1,20 @@
+FROM node:16 as builder
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
 FROM node:16
 
-# Create app directory
 WORKDIR /home/github/spk-indexer-node
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
-COPY package*.json ./
+COPY --from=builder package.json package-lock.json ./
 
-RUN npm install
-# If you are building your code for production
-# RUN npm ci --only=production
+RUN npm ci --only-production && \
+    npm cache clean --force 
 
-# Bundle app source
-COPY . .
+COPY --from=builder dist dist
 
-CMD [ "npm", "run", "dev" ]
+CMD [ "npm", "run", "start"]

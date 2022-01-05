@@ -36,7 +36,7 @@ export class IndexerApiModule {
 
   public async listen() {
     const app = await NestFactory.create(ControllerModule, {
-      cors: ConfigService.getConfig().testMode,
+      cors: ConfigService.getConfig().enableCors,
     })
 
     app.enableShutdownHooks()

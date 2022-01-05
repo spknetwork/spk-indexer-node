@@ -19,6 +19,8 @@ services:
     environment:
       MONGO_HOST: mongo:27017
       IPFS_HOST: ipfs:5001
+      JAEGER_HOST: jaeger
+      JAEGER_PORT: 6832
   mongo:
     container_name: mongo
     image: mongo:latest
@@ -32,6 +34,13 @@ services:
     command:
       - daemon
       - --enable-pubsub-experiment
+    networks:
+      - spk-indexer-network
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "6832:6832/udp"
+      - "16686:16686"
     networks:
       - spk-indexer-network
 networks:

@@ -41,7 +41,10 @@ export class IndexerApiModule {
 
     app.enableShutdownHooks()
 
-    const swaggerconfig = new DocumentBuilder().setTitle('SPK Indexer Daemon').build()
+    const swaggerconfig = new DocumentBuilder()
+      .setTitle('SPK Indexer Daemon')
+      .setVersion(ConfigService.getConfig().serviceVersion)
+      .build()
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerconfig)
     SwaggerModule.setup('swagger', app, swaggerDocument)
 

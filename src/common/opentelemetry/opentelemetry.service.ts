@@ -22,7 +22,6 @@ export class OpenTelemetryService {
 
     this.sdk = new NodeSDK({
       resource,
-      //       instrumentations: [getNodeAutoInstrumentations()],
     })
 
     tracerProvider.register({})

@@ -1,5 +1,6 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
 import { catchError, finalize, Observable, throwError } from 'rxjs'
+import { ConfigService } from '../../config.service'
 import { logger } from '../logger.singleton'
 import { OpenTelemetryService } from './opentelemetry.service'
 
@@ -23,6 +24,8 @@ export class OpenTelemetryInterceptor {
       'http.path': request.route?.path,
       'http.url': request.url,
       'http.version': request.httpVersion,
+      'spk.indexer.version': ConfigService.getConfig().serviceVersion,
+      'node.version': process.version,
     })
 
     request.span = span

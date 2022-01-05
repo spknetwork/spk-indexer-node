@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto'
 import { Ed25519Provider } from 'key-did-provider-ed25519'
 import { DocCacheService } from './doc-cache.service'
 import { CoreService } from './core.service'
+import { MockSpan } from '../../../common/opentelemetry/mock-span.class'
 
 describe('schema validator service should operate', () => {
   let docCacheService: DocCacheService
@@ -47,7 +48,7 @@ describe('schema validator service should operate', () => {
   it('should create and return document', async () => {
     const testContent = { testkey: 'testvalue' }
     const created = await docCacheService.createDocument(testContent)
-    const fetched = await docCacheService.getDocument(created.id.toString())
+    const fetched = await docCacheService.getDocument(created.id.toString(), new MockSpan())
     expect(created.id.toString()).toEqual(fetched.stream_id)
   })
 })

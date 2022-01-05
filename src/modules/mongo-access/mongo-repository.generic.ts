@@ -25,6 +25,7 @@ export class MongoRepository<T extends SpkCollectionItem> {
       )
     }
 
-    return items[0] || null
+    // TODO - investigate type mismatch
+    return (items[0] as any) || null
   }
 }

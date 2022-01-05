@@ -1,0 +1,9 @@
+# docker compose from https://github.com/jaegertracing/jaeger/blob/main/examples/hotrod/docker-compose.yml
+# for jaeger deployment options, see https://www.jaegertracing.io/docs/1.29/deployment/
+version: '3.7'
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "6832:6832/udp"
+      - "16686:16686"

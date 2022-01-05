@@ -1,3 +1,5 @@
+import { ExporterConfig as JaegerConfig } from '@opentelemetry/exporter-jaeger'
+
 export interface IndexerAppConfig {
   mongoDatabaseName: string
   mongoHost: string
@@ -5,6 +7,30 @@ export interface IndexerAppConfig {
   ipfsHost: string
   apiListenPort: number
   testMode: boolean
+  jaegerConfig: JaegerConfig
+  serviceVersion: string
+}
+
+// see config example https://www.npmjs.com/package/@opentelemetry/exporter-jaeger
+function getJaegerConfig(): JaegerConfig {
+  let jaegerPort
+  if (process.env.JAEGER_PORT) {
+    try {
+      jaegerPort = parseInt(process.env.JAEGER_PORT)
+    } catch (err) {
+      throw new Error(
+        `Error parsing api listen port!  ${process.env.JAEGER_PORT} is not a valid number`,
+      )
+    }
+  } else {
+    jaegerPort = 6832
+  }
+
+  return {
+    host: process.env.JAEGER_HOST || 'localhost',
+    port: jaegerPort,
+    maxPacketSize: 65000,
+  }
 }
 
 export class ConfigService {
@@ -29,6 +55,8 @@ export class ConfigService {
       ipfsHost: process.env.IPFS_HOST || 'localhost:5001',
       apiListenPort,
       testMode: process.env.TEST_MODE === 'true',
+      jaegerConfig: getJaegerConfig(),
+      serviceVersion: process.env.npm_package_version,
     }
   }
 }

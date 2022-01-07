@@ -17,7 +17,6 @@ async function startup(): Promise<void> {
 
   // Start tracer
   await OpenTelemetryService.start()
-  logger.info('Started opentelemetry tracer')
 
   // init mongo
   const MONGO_HOST = ConfigService.getConfig().mongoHost

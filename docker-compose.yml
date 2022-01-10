@@ -29,6 +29,8 @@ services:
       - 27027:27017
     networks:
       - spk-indexer-network
+    volumes: 
+      - /data/mongo_spk_indexer:/data/db
   ipfs:
     container_name: ipfs
     image: ipfs/go-ipfs:latest

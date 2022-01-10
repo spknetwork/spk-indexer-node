@@ -320,4 +320,22 @@ export class DocCacheService {
         throw new Error(`Invalid sort option ${sort}`)
     }
   }
+
+  async *getAllDocs(
+    skip = 0,
+    limit = 25,
+    sort: DocSortOption = DocSortOption.createddesc,
+  ): AsyncGenerator<DocumentViewDto> {
+    const cursor = this.core.graphDocs.find(
+      {},
+      {
+        skip,
+        limit,
+        sort: this.getMongoSortOption(sort),
+      },
+    )
+    for await (const doc of cursor) {
+      yield DocumentViewDto.fromIndexedDocument(doc)
+    }
+  }
 }

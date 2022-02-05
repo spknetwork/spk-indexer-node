@@ -23,4 +23,4 @@ If you are not sure how to run a jaeger instance, you can use the jaeger `all-in
 
 # License
 
-MIT (subject to change/finalization)
+MIT

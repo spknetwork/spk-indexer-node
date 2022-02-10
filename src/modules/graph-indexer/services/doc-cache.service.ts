@@ -6,6 +6,7 @@ import { UserDocumentViewDto } from '../../api/resources/user-document.view'
 import { CeramicDocContent, DocSortOption } from '../graph-indexer.model'
 import { CoreService } from './core.service'
 import { differenceInMinutes } from 'date-fns'
+import { Span } from '@opentelemetry/api'
 import { logger } from '../../../common/logger.singleton'
 import Crypto from 'crypto'
 import base64url from 'base64url'
@@ -40,7 +41,7 @@ export class DocCacheService {
    * @description Cache a doc that has not been cached before
    * @param streamId stream ID of ceramic document to initialize in the cache
    */
-  public async initializeCachedDoc(streamId: string): Promise<void> {
+  public async initializeCachedDoc(streamId: string, span: Span): Promise<void> {
     const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId)
 
     // Assign creator ID as the first controller on the document
@@ -60,8 +61,10 @@ export class DocCacheService {
       version_id: tileDoc.tip.toString(),
       creator_id: creatorId,
     })
+    span.addEvent('inserted_graph_doc')
 
     await this.core.initGraphIndexNode(streamId, tileDoc.content.parent_id)
+    span.addEvent('inserted_graph_index')
   }
 
   /**
@@ -120,6 +123,7 @@ export class DocCacheService {
   // May want to eliminate this function
   async *getDocsForUserFromIdx(
     creatorId: string,
+    span: Span,
     skip = 0,
     limit = 25,
   ): AsyncGenerator<UserDocumentViewDto> {
@@ -130,7 +134,7 @@ export class DocCacheService {
     const permlinks = Object.keys(linksFromIdx || {}).slice(skip, skip + limit)
 
     for (const permlink of permlinks) {
-      const data = await this.getDocument(linksFromIdx[permlink])
+      const data = await this.getDocument(linksFromIdx[permlink], span)
       const view = UserDocumentViewDto.fromDocumentView(data, permlink)
       yield view
     }
@@ -142,9 +146,10 @@ export class DocCacheService {
    * @param {String} stream_id
    * @returns the requested document
    */
-  async getDocument(stream_id: string): Promise<DocumentView> {
+  async getDocument(stream_id: string, span: Span): Promise<DocumentView> {
     const cachedDoc = await this.core.graphDocs.findOne({ id: stream_id })
     if (cachedDoc) {
+      span.addEvent('return_cached_doc')
       return {
         creator_id: cachedDoc.creator_id,
         stream_id: cachedDoc.id,
@@ -154,6 +159,7 @@ export class DocCacheService {
         updated_at: cachedDoc.updated_at,
       }
     } else {
+      span.addEvent('retrieve_and_cache_doc')
       const tileDoc = await TileDocument.load<CeramicDocContent>(this.ceramic, stream_id)
       const creator_id = tileDoc.metadata.controllers[0]
       const nextContent = (tileDoc.content as any).content
@@ -194,7 +200,7 @@ export class DocCacheService {
     const tileDoc = await TileDocument.load<CeramicDocContent>(this.ceramic, stream_id)
 
     if (!tileDoc) {
-      console.log(`Could not retrieve doc with stream ID ${stream_id}`)
+      logger.error(`Could not retrieve doc with stream ID ${stream_id}`)
     }
 
     let created_at_from_log
@@ -312,6 +318,24 @@ export class DocCacheService {
         return { updated_at: -1 }
       default:
         throw new Error(`Invalid sort option ${sort}`)
+    }
+  }
+
+  async *getAllDocs(
+    skip = 0,
+    limit = 25,
+    sort: DocSortOption = DocSortOption.createddesc,
+  ): AsyncGenerator<DocumentViewDto> {
+    const cursor = this.core.graphDocs.find(
+      {},
+      {
+        skip,
+        limit,
+        sort: this.getMongoSortOption(sort),
+      },
+    )
+    for await (const doc of cursor) {
+      yield DocumentViewDto.fromIndexedDocument(doc)
     }
   }
 }

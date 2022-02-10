@@ -1,6 +1,20 @@
-import { BadRequestException, HttpCode, HttpStatus, Post, Put, Query } from '@nestjs/common'
-import { Controller, Get, Param } from '@nestjs/common'
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common'
 import { ApiAcceptedResponse, ApiNotFoundResponse, ApiOkResponse, ApiQuery } from '@nestjs/swagger'
+import { Span } from '@opentelemetry/api'
+
+import { OpenTelemetryInterceptor } from '../../../common/opentelemetry/opentelemetry.interceptor'
+import { RequestSpan } from '../../../common/opentelemetry/request-span.decorator'
 import { DocSortOption } from '../../graph-indexer/graph-indexer.model'
 import { indexerContainer } from '../indexer-api.module'
 import { DocumentViewDto } from '../resources/document.view'
@@ -8,6 +22,7 @@ import { DocumentViewDto } from '../resources/document.view'
 // Need to keep a top-level container here to avoid garbage collection
 // @Controller(`${INDEXER_API_BASE_URL}/debug`)
 @Controller(`/api/v0/indexer`)
+@UseInterceptors(OpenTelemetryInterceptor)
 export class IndexerApiController {
   constructor() {}
 
@@ -15,16 +30,24 @@ export class IndexerApiController {
   @ApiAcceptedResponse({ description: 'The document was found and indexed' })
   @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
   @HttpCode(HttpStatus.ACCEPTED)
-  public async reindexDocument(@Param('documentStreamId') streamId: string): Promise<void> {
-    void indexerContainer.self.docCacheService.refreshCachedDoc(streamId)
+  public async reindexDocument(
+    @Param('documentStreamId') streamId: string,
+    @RequestSpan() span: Span,
+  ): Promise<void> {
+    span.setAttribute('stream_id', streamId)
+    await indexerContainer.self.docCacheService.refreshCachedDoc(streamId)
   }
 
   @Post('index/:documentStreamId')
   @ApiAcceptedResponse({ description: 'The document was found and indexed' })
   @ApiNotFoundResponse({ description: 'The document was not found on ceramic' })
   @HttpCode(HttpStatus.CREATED)
-  public async indexDocument(@Param('documentStreamId') streamId: string): Promise<void> {
-    void indexerContainer.self.docCacheService.initializeCachedDoc(streamId)
+  public async indexDocument(
+    @Param('documentStreamId') streamId: string,
+    @RequestSpan() span: Span,
+  ): Promise<void> {
+    span.setAttribute('stream_id', streamId)
+    await indexerContainer.self.docCacheService.initializeCachedDoc(streamId, span)
   }
 
   @Get('documents/:documentStreamId')
@@ -35,8 +58,10 @@ export class IndexerApiController {
   @HttpCode(HttpStatus.OK)
   public async fetchDocument(
     @Param('documentStreamId') streamId: string,
+    @RequestSpan() span: Span,
   ): Promise<DocumentViewDto> {
-    const doc = await indexerContainer.self.docCacheService.getDocument(streamId)
+    span.setAttribute('stream_id', streamId)
+    const doc = await indexerContainer.self.docCacheService.getDocument(streamId, span)
     return DocumentViewDto.fromDocumentView(doc)
   }
 
@@ -63,11 +88,13 @@ export class IndexerApiController {
     type: String,
   })
   public async getDocumentsForUser(
+    @RequestSpan() span: Span,
     @Query('userId') userId: string,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
     @Query('sort') sort?: DocSortOption,
-  ) {
+  ): Promise<DocumentViewDto[]> {
+    span.setAttribute('user_id', userId)
     // Validate page parameters
     if (!page) page = 1
     if (!pageSize) pageSize = 25
@@ -124,11 +151,13 @@ export class IndexerApiController {
     type: String,
   })
   public async getChildren(
+    @RequestSpan() span: Span,
     @Query('parentId') parentId: string,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
     @Query('sort') sort?: DocSortOption,
-  ) {
+  ): Promise<DocumentViewDto[]> {
+    span.setAttribute('parent_id', parentId)
     // Validate page parameters
     if (!page) page = 1
     if (!pageSize) pageSize = 25
@@ -159,6 +188,10 @@ export class IndexerApiController {
   }
 
   @Get('feed')
+  @ApiOkResponse({
+    description: 'Array of children of the provided document stream ID',
+    type: [DocumentViewDto],
+  })
   @ApiQuery({
     name: 'page',
     required: false,
@@ -170,9 +203,10 @@ export class IndexerApiController {
     type: Number,
   })
   public async getFeed(
+    @RequestSpan() span: Span,
     @Query('page') page?: number | string,
     @Query('pageSize') pageSize?: number | string,
-  ) {
+  ): Promise<DocumentViewDto[]> {
     // Validate page parameters
     if (!page) page = 1
     if (!pageSize) pageSize = 25
@@ -187,34 +221,17 @@ export class IndexerApiController {
 
     const recordsToSkip = IndexerApiController.calculateSkip(pageSize, page)
 
-    const data = await indexerContainer.self.graphDocs
-      .find(
-        {},
-        {
-          skip: recordsToSkip,
-          limit: pageSize,
-          sort: {
-            first_seen: -1,
-          },
-        },
-      )
-      .toArray()
+    const feedDocs: DocumentViewDto[] = []
 
-    const out = data.map((e) => {
-      delete e._id
+    for await (const item of indexerContainer.self.docCacheService.getAllDocs(
+      recordsToSkip,
+      pageSize,
+      DocSortOption.createddesc,
+    )) {
+      feedDocs.push(item)
+    }
 
-      return {
-        id: e.id,
-        content: e.content,
-        parent_id: e.parent_id,
-        first_seen: e.first_seen,
-        last_updated: e.last_updated,
-        creator_id: e.creator_id,
-        version_id: e.version_id,
-      }
-    })
-
-    return out
+    return feedDocs
   }
   static calculateSkip(size: number | string, page: number | string): number {
     size = parseInt(size.toString(), 10)

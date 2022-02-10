@@ -1,0 +1,17 @@
+version: "3.3"
+
+services:
+  mongo:
+    container_name: mongo
+    image: mongo:latest
+    ports:
+      - 27017:27017
+  ipfs:
+    container_name: ipfs
+    image: ipfs/go-ipfs:latest
+    ports: 
+      - 5001:5001
+    command:
+      - daemon
+      - --enable-pubsub-experiment
+    

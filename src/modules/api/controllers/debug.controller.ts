@@ -1,5 +1,7 @@
 import { Controller, Get, InternalServerErrorException } from '@nestjs/common'
+
 import { indexerContainer, ipfsContainer } from '../indexer-api.module'
+
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 export interface DebugSummaryInfo {
   /**

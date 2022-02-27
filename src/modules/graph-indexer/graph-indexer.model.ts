@@ -33,6 +33,7 @@ export class IndexedDocument implements SpkCollectionItem {
   version_id?: string
   pinned: boolean
   creator_id?: string
+  type: string
 }
 
 /**

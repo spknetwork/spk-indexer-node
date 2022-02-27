@@ -42,7 +42,9 @@ export class DocCacheService {
    * @param streamId stream ID of ceramic document to initialize in the cache
    */
   public async initializeCachedDoc(streamId: string, span: Span): Promise<void> {
-    const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId)
+    const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId, {
+      sync: SyncOptions.NEVER_SYNC,
+    })
 
     // Assign creator ID as the first controller on the document
     const creatorId = tileDoc.controllers[0]
@@ -60,6 +62,7 @@ export class DocCacheService {
       parent_id: tileDoc.content.parent_id,
       version_id: tileDoc.tip.toString(),
       creator_id: creatorId,
+      type: 'LINKED_DOC',
     })
     span.addEvent('inserted_graph_doc')
 
@@ -146,10 +149,12 @@ export class DocCacheService {
    * @param {String} stream_id
    * @returns the requested document
    */
-  async getDocument(stream_id: string, span: Span): Promise<DocumentView> {
+  async getDocument(stream_id: string, span?: Span): Promise<DocumentView> {
     const cachedDoc = await this.core.graphDocs.findOne({ id: stream_id })
     if (cachedDoc) {
-      span.addEvent('return_cached_doc')
+      if (span) {
+        span.addEvent('return_cached_doc')
+      }
       return {
         creator_id: cachedDoc.creator_id,
         stream_id: cachedDoc.id,
@@ -159,7 +164,9 @@ export class DocCacheService {
         updated_at: cachedDoc.updated_at,
       }
     } else {
-      span.addEvent('retrieve_and_cache_doc')
+      if (span) {
+        span.addEvent('retrieve_and_cache_doc')
+      }
       const tileDoc = await TileDocument.load<CeramicDocContent>(this.ceramic, stream_id)
       const creator_id = tileDoc.metadata.controllers[0]
       const nextContent = (tileDoc.content as any).content
@@ -177,6 +184,7 @@ export class DocCacheService {
         version_id: tileDoc.tip.toString(),
         creator_id: creator_id,
         pinned: false,
+        type: 'LINKED_DOC',
       })
       return {
         creator_id: creator_id,
@@ -302,6 +310,8 @@ export class DocCacheService {
       last_pinged: new Date(),
       pinned: true,
       parent_id: parent_id,
+      creator_id: this.ceramic.did.id,
+      type: 'LINKED_DOC',
     })
     return doc
   }

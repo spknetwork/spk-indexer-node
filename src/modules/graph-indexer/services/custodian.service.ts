@@ -296,10 +296,10 @@ export class CustodianService {
       for await (const item of consumer) {
         console.log(item)
       }*/
-      void (await this.transverseChildren(
+      /*void (await this.transverseChildren(
         'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',
-      ))
-      void this.announceBloom('kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho')
+      ))*/
+      void this.announceBloom('kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso')
     })
   }
   async stop() {

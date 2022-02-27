@@ -15,9 +15,13 @@ import { BloomFilter } from 'bloom-filters'
 import { DocCacheService } from './doc-cache.service'
 import { DatabaseMaintService } from './database-maint.service'
 import { logger } from '../../../common/logger.singleton'
+import { Config } from './config.service'
+import path from 'path'
+import os from 'os'
+import { IdentityService } from './identity.service'
 
 const idxAliases = {
-  rootPosts: 'ceramic://kjzl6cwe1jw147fikhkjs9qysmv6dkdsu5i6zbgk4x9p47gt9uedru1755y76dg',
+  rootPosts: 'ceramic://kjzl6cwe1jw149xy2w2qycwts4xjpvyzrkptdw20iui7r486bd6sasqb9tgglzp',
 }
 export class CoreService {
   db: Db
@@ -29,6 +33,8 @@ export class CoreService {
   postSpider: PostSpiderService
   schemaValidator: SchemaValidatorService
   docCacheService: DocCacheService
+  config: Config
+  nodeIdentity: IdentityService
 
   constructor(readonly ceramic: CeramicClient, public readonly mongoClient: MongoClient) {
     this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
@@ -181,7 +187,7 @@ export class CoreService {
         })
         .toArray()
     ).map((e) => e.id)
-    if ([].length === 0) {
+    if (items.length === 0) {
       return null
     }
     const bloom = BloomFilter.from(items, 0.001)
@@ -196,49 +202,32 @@ export class CoreService {
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
     await DatabaseMaintService.createIndexes(this)
 
-    this._threeId = await ThreeIdProvider.create({
-      ceramic: this.ceramic,
-      did: 'did:3:kjzl6cwe1jw147v2fzxjvpbvjp87glksoi2p698t6bbhuv2cuc3vie7kcopvyfb',
-      // Seed is randomly generated so we can safely expose it publicly.
-      seed: Uint8Array.from([
-        86, 151, 157, 124, 159, 113, 140, 212, 127, 91, 246, 26, 219, 239, 93, 63, 129, 86, 224,
-        171, 246, 28, 8, 4, 188, 0, 114, 194, 151, 239, 176, 253,
-      ]),
-      getPermission: (request) => {
-        return request.payload.paths
-      },
-    })
+    this.config = new Config(path.join(os.homedir(), '.spk-indexer-node'))
+    await this.config.open()
 
-    const did = new DID({
-      provider: this._threeId.getDidProvider(),
-      resolver: ThreeIdResolver.getResolver(this.ceramic),
-    })
-    await did.authenticate()
-    await this.ceramic.setDID(did)
-    logger.info(`Node DID: ${did.id}`)
+    this.nodeIdentity = new IdentityService(this)
+    await this.nodeIdentity.start()
     this.idx = new IDX({
       autopin: true,
       ceramic: this.ceramic,
       aliases: idxAliases,
     })
+    logger.info(`Node DID: ${this.nodeIdentity.identity.id}`)
+    /*await this.docCacheService.createDocument(
+      {
+        title: 'this is a title of body post! children',
+        body: 'child of kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso',
+      },
+      'kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso',
+    )*/
+    await this.indexRefs()
+
+    const bloom = await this.createBloom(
+      'kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso',
+    )
 
     this.custodianSystem = new CustodianService(this)
     await this.custodianSystem.start()
     this.postSpider = new PostSpiderService(this)
-    /*await this.postSpider.start()
-    await this.postSpider.pullSingle(
-      'did:3:kjzl6cwe1jw147v2fzxjvpbvjp87glksoi2p698t6bbhuv2cuc3vie7kcopvyfb',
-    )*/
-    //;(await this.postSpider.start()) *
-    //void this.indexRefs()
-    /*void this.createPost(
-      {
-        title: 'Test post with permlink',
-        description: 'Test post with permlink',
-      },
-      'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',
-    )*/
-    //void this.createBloom('kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho')
-    //this.procSync()
   }
 }

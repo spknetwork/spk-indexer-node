@@ -106,6 +106,7 @@ export class DocCacheService {
     limit = 25,
     sort: DocSortOption = DocSortOption.createddesc,
   ): AsyncGenerator<DocumentViewDto> {
+    this.core.custodianSystem.transverseChildren(doc_id).catch((e) => console.log(e))
     const cursor = this.core.graphDocs.find(
       {
         parent_id: doc_id,

@@ -27,9 +27,6 @@ async function startup(): Promise<void> {
 
   const instance = new CoreService(ceramic, mongo)
   await instance.start()
-  await instance.postSpider.pullSingle(
-    `did:3:kjzl6cwe1jw147v2fzxjvpbvjp87glksoi2p698t6bbhuv2cuc3vie7kcopvyfb`,
-  )
 
   // Start API
   const IPFS_HOST = ConfigService.getConfig().ipfsHost

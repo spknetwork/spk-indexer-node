@@ -2,6 +2,9 @@ enum Flags {
   BOGON,
 }
 
+/**
+ * @todo finishoff/complete
+ */
 interface SPKContainer {
   data: any
   type: string // Type of contained data
@@ -11,6 +14,10 @@ interface SPKContainer {
   flags: string[] //Announce BOGON (deletion), etc.
 }
 
+/**
+ * Reference to the community that the content is created under
+ * NOTE: This is not and will not be in use until later.
+ */
 interface CommunityRef {
   name: string
   id: string
@@ -19,17 +26,22 @@ interface CommunityRef {
 interface SocialContent {
   title: string
   body: string
+  category: string
 
-  refs: string[] //References to content on other chains and/or platforms
+  //References to content on other chains and/or platforms
+  //In the format of platform:username:permlink (subject to change)
+  refs?: string[]
   tags: string[] //List of social tags
   image: string[]
   lang: string
-  community_ref?: CommunityRef
 
   type: string // Type of social content
   app: string
-  app_metadata: Record<string, unknown>
-  json_metadata: Record<string, unknown>
+
+  //TBD
+  app_metadata?: Record<string, unknown>
+  json_metadata?: Record<string, unknown>
+  community_ref?: CommunityRef
 }
 
 enum SourceMapType {

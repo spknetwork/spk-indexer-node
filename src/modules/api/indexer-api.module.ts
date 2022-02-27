@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Injectable, Module, NestMiddleware } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { IPFSHTTPClient } from 'ipfs-http-client'
@@ -8,6 +8,10 @@ import { CoreService } from '../graph-indexer/services/core.service'
 import { DebugApiController } from './controllers/debug.controller'
 import { HealthApiController } from './controllers/health.controller'
 import { IndexerApiController } from './controllers/indexer.controller'
+import { graphqlHTTP } from 'express-graphql' // ES6
+import { buildSchema } from 'graphql'
+import { schema } from './graphql/schema'
+import { Resolvers } from './graphql/resolvers'
 
 export const ipfsContainer: { self: IPFSHTTPClient } = {} as any
 export const indexerContainer: { self: CoreService } = {} as any
@@ -38,6 +42,14 @@ export class IndexerApiModule {
     const app = await NestFactory.create(ControllerModule, {
       cors: ConfigService.getConfig().enableCors,
     })
+    app.use(
+      '/v1/graphql',
+      graphqlHTTP({
+        schema: buildSchema(schema),
+        graphiql: true,
+        rootValue: Resolvers,
+      }),
+    )
 
     app.enableShutdownHooks()
 

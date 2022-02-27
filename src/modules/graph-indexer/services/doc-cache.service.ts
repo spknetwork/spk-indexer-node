@@ -42,9 +42,7 @@ export class DocCacheService {
    * @param streamId stream ID of ceramic document to initialize in the cache
    */
   public async initializeCachedDoc(streamId: string, span: Span): Promise<void> {
-    const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId, {
-      sync: SyncOptions.NEVER_SYNC,
-    })
+    const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId)
 
     // Assign creator ID as the first controller on the document
     const creatorId = tileDoc.controllers[0]

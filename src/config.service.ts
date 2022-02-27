@@ -52,7 +52,7 @@ export class ConfigService {
     return {
       mongoDatabaseName: process.env.MONGO_DATABASE || 'spk-indexer-test',
       mongoHost: process.env.MONGO_HOST || 'localhost:27017',
-      ceramicHost: process.env.CERAMIC_HOST || 'https://ceramic-clay.3boxlabs.com',
+      ceramicHost: process.env.CERAMIC_HOST || 'https://d12-b-ceramic.3boxlabs.com',
       ipfsHost: process.env.IPFS_HOST || 'localhost:5001',
       apiListenPort,
       testMode: process.env.TEST_MODE === 'true',

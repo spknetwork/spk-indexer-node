@@ -107,6 +107,22 @@ export class DocCacheService {
     sort: DocSortOption = DocSortOption.createddesc,
   ): AsyncGenerator<DocumentViewDto> {
     this.core.custodianSystem.transverseChildren(doc_id).catch((e) => console.log(e))
+    const indexedChildren = await this.core.graphIndex
+      .find({
+        parent_id: doc_id,
+      })
+      .toArray()
+
+    for (const child of indexedChildren) {
+      if (
+        !(await this.core.graphDocs.findOne({
+          id: child.id,
+        }))
+      ) {
+        await this.getDocument(child.id)
+      }
+    }
+
     const cursor = this.core.graphDocs.find(
       {
         parent_id: doc_id,

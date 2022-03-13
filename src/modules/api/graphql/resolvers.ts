@@ -1,7 +1,9 @@
 import { IPFS_PUBSUB_TOPIC } from '../../peer-to-peer/p2p.model'
 import { indexerContainer } from '../indexer-api.module'
+import GraphQLJSON from 'graphql-type-json'
 
 export const Resolvers = {
+  JSON: GraphQLJSON,
   author: () => {},
   sync: async (args: any) => {
     console.log(args)
@@ -42,11 +44,14 @@ export const Resolvers = {
   documentChildren: async (args: any) => {
     const out = []
     for await (const item of indexerContainer.self.docCacheService.getDocChildren(args.docId)) {
-      out.push(item)
+      out.push({
+        ...item,
+        contentRaw: item,
+      })
     }
-    console.log(out)
     return out
   },
+  documentGraph: async (args: any) => {},
   socialPost: async (args: any) => {
     const postContent = await indexerContainer.self.docCacheService.getDocument(args.post_id)
     console.log(postContent)

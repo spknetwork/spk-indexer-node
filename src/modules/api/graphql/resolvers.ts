@@ -21,6 +21,24 @@ export const Resolvers = {
     console.log(userDocs)
     return []
   },
+  publicFeed: async (args: any) => {
+    const query = {}
+    if (args.tag) {
+      query['tags'] = args.tag
+    }
+    return await indexerContainer.self.graphDocs
+      .find(
+        {
+          content: {},
+        },
+        {
+          sort: {
+            created_at: -1,
+          },
+        },
+      )
+      .toArray()
+  },
   documentChildren: async (args: any) => {
     const out = []
     for await (const item of indexerContainer.self.docCacheService.getDocChildren(args.docId)) {
@@ -77,6 +95,9 @@ export const Resolvers = {
         peerId: e,
       }
     })
+  },
+  oplogFeed: async (args: any) => {
+    return await indexerContainer.self.oplogService.getEntries(args.pagination_id)
   },
 }
 

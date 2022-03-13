@@ -68,6 +68,20 @@ export const schema = `
         creatorId: String
         namespace: String
     }
+    type OplogEntryMeta { 
+        version_id: String
+    }
+    type OplogEntry {
+        type: String
+        date: String
+        stream_id: String
+        meta: OplogEntryMeta
+    }
+    type OplogOut {
+        count: Int
+        pagination_id: String
+        items: [OplogEntry]
+    }
     type Query {
         
         ceramicProfile(userId: String): CeramicProfile
@@ -77,5 +91,7 @@ export const schema = `
 
         sync(namespace: String): [SyncHead]
         pubsubPeers: [PubsubPeer]
+        oplogFeed(pagination_id: String): OplogOut
+        publicFeed(tag: String, text: String): [SocialContent]
     }
 `

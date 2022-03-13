@@ -14,16 +14,23 @@ export class OplogService {
     await this.oplog.insertOne(entry)
   }
   async getEntries(pagination_id: string) {
-    const array = await this.oplog
-      .find(
-        {
-          ...(pagination_id ? { _id: { $gt: new ObjectId(pagination_id) } } : {}),
-        },
-        {
-          limit: 100,
-        },
-      )
-      .toArray()
+    const array = (
+      await this.oplog
+        .find(
+          {
+            ...(pagination_id ? { _id: { $gt: new ObjectId(pagination_id) } } : {}),
+          },
+          {
+            limit: 100,
+          },
+        )
+        .toArray()
+    ).map((e) => {
+      return {
+        ...e,
+        date: e.date.toISOString(),
+      }
+    })
     if (array.length === 0) {
       return {
         pagination_id: null,

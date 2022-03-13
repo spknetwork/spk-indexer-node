@@ -200,6 +200,8 @@ export class CoreService {
     // Init collections and indexes
     this.graphDocs = this.db.collection(MongoCollections.IndexedDocs)
     this.graphIndex = this.db.collection(MongoCollections.GraphIndex)
+    this.ceramicProfiles = this.db.collection('ceramic_profiles')
+    this.cacheMisc = this.db.collection('misc_cache')
     await DatabaseMaintService.createIndexes(this)
 
     this.config = new Config(path.join(os.homedir(), '.spk-indexer-node'))
@@ -213,6 +215,29 @@ export class CoreService {
       aliases: idxAliases,
     })
     logger.info(`Node DID: ${this.nodeIdentity.identity.id}`)
+    this.profileService = new ProfilesService(this)
+
+    //await this.indexRefs()
+
+    /*const bloom = await this.createBloom(
+      'kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso',
+    )*/
+
+    this.custodianSystem = new CustodianService(this)
+    await this.custodianSystem.start()
+    this.postSpider = new PostSpiderService(this)
+    this.oplogService = new OplogService(this)
+    this.sync = new SyncService(this)
+    await this.sync.start()
+
+    /*const testDoc = await TileDocument.load(
+      this.ceramic,
+      'kjzl6cwe1jw146b542t7glg35xnpbx781trjk4hm73dbqazdg4kjd6u0oj4cf2h',
+    )
+    await testDoc.update({
+      title: 'Different title',
+      body: 'Different body! Changed even more.',
+    })*/
     /*await this.docCacheService.createDocument(
       {
         title: 'this is a title of body post! children',

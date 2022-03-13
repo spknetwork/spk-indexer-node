@@ -85,6 +85,15 @@ export class DocCacheService {
       creator_id: creatorId,
       type: 'LINKED_DOC',
     })
+
+    await this.core.custodianSystem.announceCreation({
+      headers: {
+        creator_id: creatorId,
+        namespace: tileDoc.content.app,
+        parent_id: tileDoc.content.parent_id,
+      },
+      stream_id: streamId,
+    })
     span.addEvent('inserted_graph_doc')
 
     await this.core.initGraphIndexNode(streamId, tileDoc.content.parent_id)

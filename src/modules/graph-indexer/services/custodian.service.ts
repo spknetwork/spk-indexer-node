@@ -13,6 +13,7 @@ import { SUBChannels, messageTypes } from '../../peer-to-peer/p2p.model'
 import { CoreService } from './core.service'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
 import { ConfigService } from '../../../config.service'
+import { logger } from '../../../common/logger.singleton'
 
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 
@@ -281,6 +282,25 @@ export class CustodianService {
         .toArray()
     ).map((e) => e.id)
   }
+  async announceCreation(args: {
+    headers: {
+      namespace?: string
+      creator_id?: string
+      parent_id?: string | null
+      type?: string
+    }
+    stream_id: string
+  }) {
+    const msg = {
+      type: messageTypes.ANNOUNCE_POST,
+      content: {
+        headers: args.headers,
+        stream_id: args.stream_id,
+      },
+    }
+    const codedMessage = encode(msg)
+    await this.ipfs.pubsub.publish(SUBChannels.CUSTODIAN_SYNC, codedMessage)
+  }
   async checkPeers() {
     const peers = await this.ipfs.pubsub.peers(
       Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
@@ -292,7 +312,10 @@ export class CustodianService {
     this.graphCs = this.self.db.collection('graph.cs')
     this.ipfs = createIpfs({ host: ConfigService.getConfig().ipfsHost })
 
+    console.log(await this.ipfs.id())
     this.myPeerId = (await this.ipfs.id()).id
+    logger.info(`IPFS PeerId: ${this.myPeerId}`)
+    console.log('ipfs peer is ES', this.myPeerId)
     void this.ipfs.pubsub.subscribe(IPFS_PUBSUB_TOPIC, this.handleSub)
     void this.ipfs.pubsub.subscribe(
       Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),

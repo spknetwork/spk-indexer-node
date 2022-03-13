@@ -19,6 +19,10 @@ import { Config } from './config.service'
 import path from 'path'
 import os from 'os'
 import { IdentityService } from './identity.service'
+import { OplogService } from './oplog.service'
+import { TileDocument } from '@ceramicnetwork/stream-tile'
+import { SyncService } from './sync.service'
+import { ProfilesService } from './profiles.service'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw149xy2w2qycwts4xjpvyzrkptdw20iui7r486bd6sasqb9tgglzp',
@@ -35,6 +39,12 @@ export class CoreService {
   docCacheService: DocCacheService
   config: Config
   nodeIdentity: IdentityService
+  oplogService: OplogService
+  sync: SyncService
+  graphProfiles: any
+  ceramicProfiles: any
+  cacheMisc: any
+  profileService: ProfilesService
 
   constructor(readonly ceramic: CeramicClient, public readonly mongoClient: MongoClient) {
     this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
@@ -240,19 +250,26 @@ export class CoreService {
     })*/
     /*await this.docCacheService.createDocument(
       {
-        title: 'this is a title of body post! children',
+        title: 'Test post to see if ceramic api is working properly',
         body: 'child of kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso',
       },
       'kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso',
     )*/
-    await this.indexRefs()
-
-    const bloom = await this.createBloom(
-      'kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso',
-    )
-
-    this.custodianSystem = new CustodianService(this)
-    await this.custodianSystem.start()
-    this.postSpider = new PostSpiderService(this)
+    try {
+      const indexedStuff = await this.graphIndex.find({}).toArray()
+      for (const idstuff of indexedStuff) {
+        await this.docCacheService.refreshCachedDoc(idstuff.id)
+      }
+    } catch (ex) {
+      console.log(ex)
+    }
+    setInterval(async () => {
+      try {
+        const indexedStuff = await this.graphIndex.find({}).toArray()
+        for (const idstuff of indexedStuff) {
+          await this.docCacheService.refreshCachedDoc(idstuff.id)
+        }
+      } catch {}
+    }, 300 * 1000)
   }
 }

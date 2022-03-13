@@ -62,4 +62,6 @@ export interface DocumentView {
   creator_id: string
   created_at: Date
   updated_at: Date
+  app?: string
+  type?: string
 }

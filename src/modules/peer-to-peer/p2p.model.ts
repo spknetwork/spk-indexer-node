@@ -4,6 +4,7 @@ export const messageTypes = {
   CUS_ANNOUNCE: 'cust_announce',
   CUS_ASK_SUBGRAPH: 'cust_ask_subgraph',
   CUS_RES_SUBGRAPH: 'cust_res_subgraph',
+  ANNOUNCE_POST: 'cust_res_subgraph',
   ASK_SUBGRAPH_BLOOM: 'ask_subgraph_bloom',
 }
 

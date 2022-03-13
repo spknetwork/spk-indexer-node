@@ -1,4 +1,5 @@
 export const schema = `
+    scalar JSON
     type SocialContent {
         streamId: String
 
@@ -41,11 +42,13 @@ export const schema = `
         parentId: String
 
         content: String
+        contentRaw: JSON
     }
     type DocumentChild {
         parentId: String
         streamId: String
         creatorId: String
+        contentRaw: JSON
     }
     type CeramicCryptoAccount {
         id: String

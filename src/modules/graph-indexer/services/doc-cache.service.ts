@@ -21,20 +21,43 @@ export class DocCacheService {
   public async refreshCachedDoc(streamId: string) {
     const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId)
 
-    await this.core.graphDocs.findOneAndUpdate(
-      {
-        id: streamId,
-      },
-      {
-        $set: {
-          version_id: tileDoc.tip.toString(),
-          last_updated: new Date(),
-          last_pinged: new Date(),
-          content: tileDoc.content.content,
-          updated_at: tileDoc.content.updated_at,
-        },
-      },
-    )
+    const data = await this.core.graphDocs.findOne({
+      id: streamId,
+    })
+    if (data) {
+      if (data.version_id !== tileDoc.tip.toString()) {
+        void this.core.oplogService.insertEntry({
+          type: 'UPDATE',
+          stream_id: streamId,
+          date: new Date(),
+          meta: {
+            version_id: tileDoc.tip.toString(),
+          },
+        })
+        //TODO: Prevent tip head hash from going backwards..
+        //Bug with Ceramic where the state goes backwards depending on network conditions.
+        await this.core.graphDocs.findOneAndUpdate(
+          {
+            id: streamId,
+          },
+          {
+            $set: {
+              version_id: tileDoc.tip.toString(),
+              last_updated: new Date(),
+              last_pinged: new Date(),
+              content: tileDoc.content.content,
+              updated_at: tileDoc.content.updated_at,
+            },
+          },
+        )
+      } else {
+        await this.core.graphDocs.findOneAndUpdate(data, {
+          $set: {
+            last_pinged: new Date(),
+          },
+        })
+      }
+    }
   }
 
   /**
@@ -201,6 +224,14 @@ export class DocCacheService {
         pinned: false,
         type: 'LINKED_DOC',
       })
+      await this.core.oplogService.insertEntry({
+        type: 'CREATE',
+        stream_id: stream_id,
+        date: new Date(),
+        meta: {
+          version_id: tileDoc.tip.toString(),
+        },
+      })
       return {
         creator_id: creator_id,
         parent_id: tileDoc.state.content.parent_id,
@@ -327,6 +358,14 @@ export class DocCacheService {
       parent_id: parent_id,
       creator_id: this.ceramic.did.id,
       type: 'LINKED_DOC',
+    })
+    await this.core.oplogService.insertEntry({
+      type: 'CREATE',
+      stream_id: doc.id.toString(),
+      date: new Date(),
+      meta: {
+        version_id: doc.tip.toString(),
+      },
     })
     return doc
   }

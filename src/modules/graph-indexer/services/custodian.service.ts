@@ -33,6 +33,7 @@ export class CustodianService {
     this.announceCustodian = this.announceCustodian.bind(this)
     this._receiveAnnounce = this._receiveAnnounce.bind(this)
     this.announceBloom = this.announceBloom.bind(this)
+    this.checkPeers = this.checkPeers.bind(this)
 
     this.asks = new Set()
     this.events = new EventEmitter()
@@ -44,7 +45,9 @@ export class CustodianService {
    */
   async _receiveAnnounce(payload, fromId) {
     if (this.myPeerId === fromId) {
+      console.log(payload, fromId)
       console.warn('peerId is the same as local node')
+      return
     }
     const announce_list = payload.content.sg.map((e) =>
       StreamID.fromBytes(Buffer.from(e, 'base64')),
@@ -88,6 +91,7 @@ export class CustodianService {
    * @param fromId
    */
   async _receiveBloomAnnounce(payload, fromId) {
+    console.log(payload, fromId)
     const parsedBloom = JSON.parse(payload.bloom)
     const bloomFilter = parsedBloom ? BloomFilter.fromJSON(parsedBloom) : null
 
@@ -277,6 +281,12 @@ export class CustodianService {
         .toArray()
     ).map((e) => e.id)
   }
+  async checkPeers() {
+    const peers = await this.ipfs.pubsub.peers(
+      Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
+    )
+    console.log(peers)
+  }
   async start() {
     this.graphIndex = this.self.db.collection('graph.index')
     this.graphCs = this.self.db.collection('graph.cs')
@@ -289,6 +299,7 @@ export class CustodianService {
       this.handleSub,
     )
     NodeSchedule.scheduleJob('* * * * *', this.announceCustodian)
+    NodeSchedule.scheduleJob('* * * * *', this.checkPeers)
     NodeSchedule.scheduleJob('* * * * *', async () => {
       /*const consumer = this.queryChildrenRemote(
         'kjzl6cwe1jw14b57249n2ujjkiiucpdw9dic9rotvk2m1tlfbmoeo7ccwkz94ho',

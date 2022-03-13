@@ -97,3 +97,12 @@ export interface CeramicDocContent {
   updated_at: string
   content: unknown
 }
+
+export interface OplogEntry {
+  type: 'CREATE' | 'UPDATE' | 'DELETE'
+  stream_id: string
+  date: Date
+  meta?: {
+    version_id: string
+  }
+}

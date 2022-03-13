@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "npm run dev:clay",
-    "dev:clay": "cross-env TEST_MODE=true CERAMIC_HOST=https://d12-b-ceramic.3boxlabs.com/ ts-node-dev src/index.ts",
+    "dev:clay": "cross-env TEST_MODE=true CERAMIC_HOST=https://ceramic.3speak.tv/ ts-node-dev src/index.ts",
     "dev:local": "cross-env TEST_MODE=true CERAMIC_HOST=http://localhost:7007 ts-node-dev src/index.ts",
     "lint:fix": "eslint --fix \"src/**/*.{ts,tsx}\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
@@ -39,7 +39,7 @@
     "ajv": "^8.8.2",
     "ajv-formats": "^2.1.1",
     "base64url": "^3.0.1",
-    "bloom-filters": "^1.3.9",
+    "bloom-filters": "^2.0.0",
     "cross-env": "^7.0.3",
     "date-fns": "^2.28.0",
     "express-graphql": "^0.12.0",

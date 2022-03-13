@@ -55,9 +55,10 @@ export const Resolvers = {
       const childIds = indexerContainer.self.docCacheService.getDocChildren(args.post_id)
       const out = []
       for await (const child of childIds) {
-        console.log('children es', child)
-        child.content['author'] = () => Resolvers.ceramicProfile({ userId: child.creatorId })
-        out.push(child.content)
+        if (child.content) {
+          child.content['author'] = () => Resolvers.ceramicProfile({ userId: child.creatorId })
+          out.push(child.content)
+        }
       }
       return out
     }

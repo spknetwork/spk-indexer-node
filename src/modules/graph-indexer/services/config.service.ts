@@ -123,6 +123,11 @@ export class Config {
     const defaultConfig = {
       node: {
         name: 'SPK network indexing node',
+        motd: '',
+        operator: {
+          name: null,
+          email: null,
+        },
         privateKey: null, //Initialized on start
         cryptoAccounts: {
           hive: null,

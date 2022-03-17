@@ -38,8 +38,8 @@ export class DocumentViewDto {
       parentId: view.parent_id,
       content: view.content,
       creatorId: view.creator_id,
-      createdAt: view.created_at,
-      updatedAt: view.updated_at,
+      createdAt: new Date(view.created_at),
+      updatedAt: new Date(view.updated_at),
     }
   }
 
@@ -49,8 +49,8 @@ export class DocumentViewDto {
       parentId: doc.parent_id,
       content: doc.content,
       creatorId: doc.creator_id,
-      createdAt: doc.created_at,
-      updatedAt: doc.updated_at,
+      createdAt: new Date(doc.created_at),
+      updatedAt: new Date(doc.updated_at),
     }
   }
 }

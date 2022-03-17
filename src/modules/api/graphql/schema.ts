@@ -1,7 +1,9 @@
 export const schema = `
     scalar JSON
     type SocialContent {
-        streamId: String
+        stream_id: String
+        version_id: String
+        parent_id: String
 
         title: String
         body: String
@@ -95,6 +97,6 @@ export const schema = `
         sync(namespace: String): [SyncHead]
         pubsubPeers: [PubsubPeer]
         oplogFeed(pagination_id: String): OplogOut
-        publicFeed(tag: String, text: String): [SocialContent]
+        publicFeed(tag: String, text: String, creator_id: String, parent_id: String): [SocialContent]
     }
 `

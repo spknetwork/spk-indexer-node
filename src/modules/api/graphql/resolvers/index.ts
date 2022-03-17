@@ -16,7 +16,7 @@ export class Document {
   }
   async children() {
     return await Document.run({
-      parent_id: this.rawDoc.parent_id,
+      parent_id: this.rawDoc.id,
     })
   }
   get stream_id() {

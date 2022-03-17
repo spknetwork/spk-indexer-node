@@ -13,6 +13,8 @@ import { buildSchema } from 'graphql'
 import { schema } from './graphql/schema'
 import { Resolvers } from './graphql/resolvers'
 
+import cors from 'cors'
+
 export const ipfsContainer: { self: IPFSHTTPClient } = {} as any
 export const indexerContainer: { self: CoreService } = {} as any
 
@@ -42,6 +44,7 @@ export class IndexerApiModule {
     const app = await NestFactory.create(ControllerModule, {
       cors: ConfigService.getConfig().enableCors,
     })
+    app.use(cors())
     app.use(
       '/v1/graphql',
       graphqlHTTP({

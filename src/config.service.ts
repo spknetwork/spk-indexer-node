@@ -58,7 +58,7 @@ export class ConfigService {
       testMode: process.env.TEST_MODE === 'true',
       jaegerConfig: getJaegerConfig(),
       serviceVersion: process.env.npm_package_version,
-      enableCors: process.env.TEST_MODE === 'true' || process.env.ENABLE_CORS === 'true',
+      enableCors: true,
     }
   }
 }

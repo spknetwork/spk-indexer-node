@@ -27,6 +27,7 @@ export class CustodianService {
   graphCs: Collection<CSNode>
   asks: Set<string>
   events: EventEmitter
+  custodianNodes: Collection
   constructor(self) {
     this.self = self
 
@@ -35,6 +36,7 @@ export class CustodianService {
     this._receiveAnnounce = this._receiveAnnounce.bind(this)
     this.announceBloom = this.announceBloom.bind(this)
     this.checkPeers = this.checkPeers.bind(this)
+    this.announceNode = this.announceNode.bind(this)
 
     this.asks = new Set()
     this.events = new EventEmitter()
@@ -134,6 +136,29 @@ export class CustodianService {
       void this.events.emit('remote.recv_subgraph', payload.content.sg, payload.parent_id)
     }
   }
+
+  async _receiveNodeAnnounce(payload, fromId: string) {
+    if (fromId === this.myPeerId) {
+      return
+    }
+    await this.custodianNodes.findOneAndUpdate(
+      {
+        peer_id: fromId,
+      },
+      {
+        $set: {
+          name: payload.node_info.name,
+          motd: payload.node_info.motd,
+          version: payload.node_info.version,
+          operator: payload.node_info.operator,
+          cryptoAccounts: payload.node_info.cryptoAccounts,
+        },
+      },
+      {
+        upsert: true,
+      },
+    )
+  }
   /**
    * Announces custodianship of locally stored documents.
    * This function mainly does not important in the overall architecture. However, eventually routing will be necessary for maximum scalability.
@@ -190,6 +215,8 @@ export class CustodianService {
       void this._receiveBloomAnnounce(msgObj, message.from)
     } else if (msgObj.type === messageTypes.CUS_RES_SUBGRAPH) {
       void this._receiveSubgraph(msgObj, message.from)
+    } else if (msgObj.type === messageTypes.ANNOUNCE_NODE) {
+      void this._receiveNodeAnnounce(msgObj, message.from)
     }
   }
   /**
@@ -291,15 +318,30 @@ export class CustodianService {
     }
     stream_id: string
   }) {
+    const headers = {}
+    if (args.headers.creator_id) {
+      headers['creator_id'] = args.headers.creator_id
+    }
+    if (args.headers.parent_id) {
+      headers['parent_id'] = args.headers.parent_id
+    }
+    if (args.headers.namespace) {
+      headers['namespace'] = args.headers.namespace
+    }
     const msg = {
       type: messageTypes.ANNOUNCE_POST,
       content: {
-        headers: args.headers,
+        headers: headers,
         stream_id: args.stream_id,
       },
     }
+    console.log(msg)
+    logger.info(`Announcing post creation:`)
     const codedMessage = encode(msg)
-    await this.ipfs.pubsub.publish(SUBChannels.CUSTODIAN_SYNC, codedMessage)
+    await this.ipfs.pubsub.publish(
+      Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
+      codedMessage,
+    )
   }
   async checkPeers() {
     const peers = await this.ipfs.pubsub.peers(
@@ -307,9 +349,29 @@ export class CustodianService {
     )
     console.log(peers)
   }
+  /**
+   * Announces that this node exists in the network
+   */
+  async announceNode() {
+    const name = this.self.config.get('node.name')
+    const cryptoAccounts = this.self.config.get('node.cryptoAccounts')
+
+    void this.ipfs.pubsub.publish(
+      Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
+      encode({
+        type: messageTypes.ANNOUNCE_NODE,
+        node_info: {
+          name,
+          cryptoAccounts,
+          version: process.env.npm_package_version,
+        },
+      }),
+    )
+  }
   async start() {
     this.graphIndex = this.self.db.collection('graph.index')
     this.graphCs = this.self.db.collection('graph.cs')
+    this.custodianNodes = this.self.db.collection('custodian_nodes')
     this.ipfs = createIpfs({ host: ConfigService.getConfig().ipfsHost })
 
     console.log(await this.ipfs.id())
@@ -321,6 +383,9 @@ export class CustodianService {
       Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
       this.handleSub,
     )
+    logger.info('Announcing node to world')
+    await this.announceNode()
+    NodeSchedule.scheduleJob('*/15 * * * *', this.announceNode)
     NodeSchedule.scheduleJob('* * * * *', this.announceCustodian)
     NodeSchedule.scheduleJob('* * * * *', this.checkPeers)
     NodeSchedule.scheduleJob('* * * * *', async () => {

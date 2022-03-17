@@ -356,17 +356,19 @@ export class CustodianService {
     const name = this.self.config.get('node.name')
     const cryptoAccounts = this.self.config.get('node.cryptoAccounts')
 
-    void this.ipfs.pubsub.publish(
-      Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
-      encode({
-        type: messageTypes.ANNOUNCE_NODE,
-        node_info: {
-          name,
-          cryptoAccounts,
-          version: process.env.npm_package_version,
-        },
-      }),
-    )
+    try {
+      void (await this.ipfs.pubsub.publish(
+        Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
+        encode({
+          type: messageTypes.ANNOUNCE_NODE,
+          node_info: {
+            name,
+            cryptoAccounts,
+            version: process.env.npm_package_version,
+          },
+        }),
+      ))
+    } catch {}
   }
   async start() {
     this.graphIndex = this.self.db.collection('graph.index')

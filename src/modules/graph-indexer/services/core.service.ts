@@ -23,6 +23,7 @@ import { OplogService } from './oplog.service'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
 import { SyncService } from './sync.service'
 import { ProfilesService } from './profiles.service'
+import { CAIP10Service } from './caip10.service'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw149xy2w2qycwts4xjpvyzrkptdw20iui7r486bd6sasqb9tgglzp',
@@ -45,6 +46,7 @@ export class CoreService {
   ceramicProfiles: any
   cacheMisc: any
   profileService: ProfilesService
+  caipService: CAIP10Service
 
   constructor(readonly ceramic: CeramicClient, public readonly mongoClient: MongoClient) {
     this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
@@ -239,6 +241,7 @@ export class CoreService {
     this.oplogService = new OplogService(this)
     this.sync = new SyncService(this)
     await this.sync.start()
+    this.caipService = new CAIP10Service(this);
 
     /*const testDoc = await TileDocument.load(
       this.ceramic,

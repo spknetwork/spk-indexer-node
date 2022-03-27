@@ -87,8 +87,13 @@ export const schema = `
         pagination_id: String
         items: [OplogEntry]
     }
+    type CAIP10 {
+        address: String
+        did: String
+    }
     type Query {
         
+        resolveCaipLink(address: String): CAIP10
         ceramicProfile(userId: String): CeramicProfile
         documentChildren(streamId: String): [DocumentChild]
 

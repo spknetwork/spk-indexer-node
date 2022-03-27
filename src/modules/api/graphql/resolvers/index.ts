@@ -165,6 +165,9 @@ export const Resolvers = {
   oplogFeed: async (args: any) => {
     return await indexerContainer.self.oplogService.getEntries(args.pagination_id)
   },
+  resolveCaipLink: async (args: any) => {
+    return await indexerContainer.self.caipService.resolveLink(args.address)
+  }
 }
 
 //https://d12-b-ceramic.3boxlabs.com/

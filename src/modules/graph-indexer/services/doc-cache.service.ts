@@ -26,11 +26,14 @@ export class DocCacheService {
     })
     if (data) {
       if (data.version_id !== tileDoc.tip.toString()) {
+        //Provides more clarity on the order at which updates occurred
+        const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
         void this.core.oplogService.insertEntry({
           type: 'UPDATE',
           stream_id: streamId,
           date: new Date(),
           meta: {
+            state_counter,
             version_id: tileDoc.tip.toString(),
           },
         })
@@ -84,6 +87,18 @@ export class DocCacheService {
       version_id: tileDoc.tip.toString(),
       creator_id: creatorId,
       type: 'LINKED_DOC',
+    })
+
+    const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
+    
+    void this.core.oplogService.insertEntry({
+      type: state_counter === 0 ? 'CREATE' : 'UPDATE',
+      stream_id: streamId,
+      date: new Date(),
+      meta: {
+        state_counter,
+        version_id: tileDoc.tip.toString(),
+      },
     })
 
     await this.core.custodianSystem.announceCreation({
@@ -238,6 +253,7 @@ export class DocCacheService {
         stream_id: stream_id,
         date: new Date(),
         meta: {
+          state_counter: 0,
           version_id: tileDoc.tip.toString(),
         },
       })
@@ -373,6 +389,7 @@ export class DocCacheService {
       stream_id: doc.id.toString(),
       date: new Date(),
       meta: {
+        state_counter: 0,
         version_id: doc.tip.toString(),
       },
     })

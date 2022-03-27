@@ -103,6 +103,7 @@ export interface OplogEntry {
   stream_id: string
   date: Date
   meta?: {
+    state_counter?: number
     version_id: string
   }
 }

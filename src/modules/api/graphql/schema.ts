@@ -23,6 +23,9 @@ export const schema = `
 
         children: [SocialContent]
         author: CeramicProfile
+
+        created_at: String
+        updated_at: String
     }
     
     type BasicProfile {

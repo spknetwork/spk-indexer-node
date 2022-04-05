@@ -55,6 +55,21 @@ export class Document {
   get community_ref() {
     return (this.rawDoc.content as any)?.community_ref
   }
+
+  get created_at() {
+    if(typeof this.rawDoc.created_at === 'string') {
+      return this.rawDoc.created_at
+    }
+    return (this.rawDoc.created_at)?.toISOString()
+  }
+
+  get updated_at() {
+    if(typeof this.rawDoc.updated_at === 'string') {
+      return this.rawDoc.updated_at
+    }
+    return (this.rawDoc.updated_at)?.toISOString()
+  }
+
   static async run(args: any) {
     const query = {}
     if (args.tag) {

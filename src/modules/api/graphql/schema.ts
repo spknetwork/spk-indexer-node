@@ -66,6 +66,16 @@ export const schema = `
         did: String
         name: String
         description: String
+        website: String
+        location: String
+        emoji: String
+        birthDate: String
+        url: String
+        gender: String
+        homeLocation: String
+        residenceCountry: String
+        nationalities: [String]
+        affiliations: [String]
         images: ProfileImages
     }
     type PubsubPeer {

@@ -17,8 +17,10 @@ export const schema = `
         type: String
         app: String
 
-        json_metadata: String
-        app_metadata: String
+        json_metadata: JSON
+        app_metadata: JSON
+        debug_metadata: JSON
+
         community_ref: String
 
         children: [SocialContent]

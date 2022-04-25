@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "socialConectionIndex",
+  "description": "Basic way to follow other DIDs",
+  "patternProperties": {
+    "^([a-zA-Z]+(-[a-zA-Z]+)+)": {
+      "type": "object",
+      "$ref": "#/$defs/connection"
+    }
+  },
+  "$defs": {
+    "connection": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "connection_type": {
+          "type": "string",
+          "maxLength": 10,
+          "description": "The type of this connection e.g. follow/own."
+        },
+        "target": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "The target of such connection e.g. DID or address."
+        },
+        "target_type": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "DID, or wallet address. CAIP2 if wallet, or DID"
+        },
+        "namespace": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "The namespace of this connection."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 27,
+          "description": "The date of this connection."
+        },
+        "alias": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "The alias of this target."
+        }
+      },
+      "required": ["target", "target_type"]
+    }
+  },
+  "additionalProperties": false
+}

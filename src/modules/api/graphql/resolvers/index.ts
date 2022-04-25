@@ -2,6 +2,7 @@ import { IPFS_PUBSUB_TOPIC } from '../../../peer-to-peer/p2p.model'
 import { indexerContainer } from '../../indexer-api.module'
 import GraphQLJSON from 'graphql-type-json'
 import { IndexedDocument } from '../../../graph-indexer/graph-indexer.model'
+import { CeramicProfile, SocialPost } from './social'
 
 export class Document {
   rawDoc: IndexedDocument
@@ -78,10 +79,12 @@ export class Document {
     console.log(args)
     if (args.creator_id) {
       query['creator_id'] = args.creator_id
+      void indexerContainer.self.postSpider.pullSingle(args.creator_id)
     }
     if (args.parent_id || args.parent_id === null) {
       query['parent_id'] = args.parent_id
     }
+
     const docs = await indexerContainer.self.graphDocs
       .find(query, {
         sort: {
@@ -147,34 +150,27 @@ export const Resolvers = {
       children,
     }
   },
-  ceramicProfile: async (args: any) => {
-    if (!args.userId) {
-      return null
-    }
-    const basicProfile = await indexerContainer.self.idx.get<any>('basicProfile', args.userId)
-    if (!basicProfile) {
-      return {
-        did: args.userId,
+  followingFeed: async (args: any) => {
+    const connections = await indexerContainer.self.idx.get('socialConnectionIndex', args.did)
+    const dids = Object.values(connections).map(e => e.target)
+    
+    dids.map(async(e) => {
+      try {
+        for await(let _ of indexerContainer.self.docCacheService.getDocsForUserFromIdx(e)) {}
+      } catch {
+
       }
-    }
-    return {
-      did: args.userId,
-      name: basicProfile.name,
-      description: basicProfile.description,
-      location: basicProfile.location,
-      birthDate: basicProfile.birthDate,
-      url: basicProfile.url,
-      gender: basicProfile.gender,
-      homeLocation: basicProfile.homeLocation,
-      residenceCountry: basicProfile.residenceCountry,
-      nationalities: basicProfile.nationalities,
-      affiliations: basicProfile.affiliations,
-      images: {
-        avatar: basicProfile?.image?.original?.src,
-        background: basicProfile?.background?.original?.src,
-      },
-    }
+    })
+    const docs = await ( indexerContainer.self.graphDocs.find({
+      creator_id: {
+        $in: dids
+      }
+    }).toArray())
+    return docs.map((e: any) => {
+      return new SocialPost(e)
+    })
   },
+  ceramicProfile: CeramicProfile,
   pubsubPeers: async () => {
     const peers = await indexerContainer.self.custodianSystem.ipfs.pubsub.peers(
       '/spk.network/testnet-dev/custodian-sync',
@@ -190,6 +186,11 @@ export const Resolvers = {
   },
   resolveCaipLink: async (args: any) => {
     return await indexerContainer.self.caipService.resolveLink(args.address)
+  },
+  pins: async (args: any) => {
+    return await indexerContainer.self.pins.ls({
+      type: args.type
+    })
   }
 }
 

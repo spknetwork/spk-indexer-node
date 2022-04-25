@@ -118,5 +118,6 @@ export const schema = `
         pubsubPeers: [PubsubPeer]
         oplogFeed(pagination_id: String): OplogOut
         publicFeed(tag: String, text: String, creator_id: String, parent_id: String): [SocialContent]
+        followingFeed(did: String): [SocialContent]
     }
 `

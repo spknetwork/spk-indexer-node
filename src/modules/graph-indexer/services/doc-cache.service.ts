@@ -188,7 +188,6 @@ export class DocCacheService {
   // May want to eliminate this function
   async *getDocsForUserFromIdx(
     creatorId: string,
-    span: Span,
     skip = 0,
     limit = 25,
   ): AsyncGenerator<UserDocumentViewDto> {
@@ -199,7 +198,7 @@ export class DocCacheService {
     const permlinks = Object.keys(linksFromIdx || {}).slice(skip, skip + limit)
 
     for (const permlink of permlinks) {
-      const data = await this.getDocument(linksFromIdx[permlink], span)
+      const data = await this.getDocument(linksFromIdx[permlink])
       const view = UserDocumentViewDto.fromDocumentView(data, permlink)
       yield view
     }

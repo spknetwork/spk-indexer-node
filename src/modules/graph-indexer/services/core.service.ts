@@ -24,6 +24,7 @@ import { TileDocument } from '@ceramicnetwork/stream-tile'
 import { SyncService } from './sync.service'
 import { ProfilesService } from './profiles.service'
 import { CAIP10Service } from './caip10.service'
+import { PinManager } from './pin-manager.service'
 
 const idxAliases = {
   rootPosts: 'ceramic://kjzl6cwe1jw149xy2w2qycwts4xjpvyzrkptdw20iui7r486bd6sasqb9tgglzp',
@@ -48,6 +49,7 @@ export class CoreService {
   cacheMisc: any
   profileService: ProfilesService
   caipService: CAIP10Service
+  pins: PinManager
 
   constructor(readonly ceramic: CeramicClient, public readonly mongoClient: MongoClient) {
     this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)
@@ -243,6 +245,9 @@ export class CoreService {
     this.sync = new SyncService(this)
     await this.sync.start()
     this.caipService = new CAIP10Service(this);
+
+    this.pins = new PinManager(this)
+    await this.pins.start()
 
     /*const testDoc = await TileDocument.load(
       this.ceramic,

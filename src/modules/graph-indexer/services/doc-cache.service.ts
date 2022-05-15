@@ -286,7 +286,15 @@ export class DocCacheService {
    * @todo Move API to client side only writes. Refactor current (centralized) test API.
    * @param streamId
    */
-  async deleteDocument(streamId: string) {}
+  async deleteDocument(streamId: string) {
+    const tileDoc = await TileDocument.load<CeramicDocContent>(this.ceramic, streamId)
+    const curDoc = tileDoc.content
+    curDoc['flags'] = ['DELETED']
+    curDoc.content = {}
+    await tileDoc.update(curDoc, null, { anchor: true })
+
+    //TODO: hook in database deletion
+  }
 
   public async docCreateTimestampIsValid(stream_id: string, created_at: string): Promise<boolean> {
     const tileDoc = await TileDocument.load<CeramicDocContent>(this.ceramic, stream_id)

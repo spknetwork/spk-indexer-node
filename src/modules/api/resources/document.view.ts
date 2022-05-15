@@ -32,6 +32,9 @@ export class DocumentViewDto {
   })
   updatedAt: Date
 
+  created_at?: Date
+  updated_at?: Date
+
   static fromDocumentView(view: DocumentView): DocumentViewDto {
     return {
       streamId: view.stream_id,
@@ -51,12 +54,15 @@ export class DocumentViewDto {
       creatorId: doc.creator_id,
       createdAt: new Date(doc.created_at),
       updatedAt: new Date(doc.updated_at),
+      created_at: new Date(doc.created_at),
+      updated_at: new Date(doc.updated_at),
     }
   }
 }
 
 export interface DocumentView {
   stream_id: string
+  version_id?: string
   parent_id?: string
   content: any
   creator_id: string

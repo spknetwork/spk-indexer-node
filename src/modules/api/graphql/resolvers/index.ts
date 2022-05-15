@@ -118,7 +118,37 @@ export const Resolvers = {
     return []
   },
   publicFeed: async (args: any) => {
-    return await Document.run(args)
+    const query = {
+      "content": {$exists: true, $nin: [null]}
+    }
+    if (args.tag) {
+      query['content.tags'] = args.tag
+    }
+    if (args.creator_id) {
+      query['creator_id'] = args.creator_id
+      void indexerContainer.self.postSpider.pullSingle(args.creator_id)
+      void (async () => {
+        try {
+          for await(let _ of indexerContainer.self.docCacheService.getDocsForUserFromIdx(args.creator_id)) {}
+        } catch {
+  
+        }
+      })()
+    }
+    if (args.parent_id || args.parent_id === null) {
+      query['parent_id'] = args.parent_id
+    }
+    
+
+    const docs = await indexerContainer.self.graphDocs
+      .find(query, {
+        sort: {
+          created_at: -1,
+        },
+      })
+      .toArray()
+
+    return docs.map((e) => new SocialPost(e))
   },
   documentChildren: async (args: any) => {
     const out = []
@@ -145,10 +175,7 @@ export const Resolvers = {
       }
       return out
     }
-    return {
-      ...postContent.content,
-      children,
-    }
+    return new SocialPost(postContent)
   },
   followingFeed: async (args: any) => {
     const connections = await indexerContainer.self.idx.get('socialConnectionIndex', args.did)

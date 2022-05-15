@@ -7,6 +7,9 @@ export const messageTypes = {
   ANNOUNCE_POST: 'announce_post',
   ANNOUNCE_NODE: 'announce_node',
   ASK_SUBGRAPH_BLOOM: 'ask_subgraph_bloom',
+
+  //Looks for objects that match an arbitary field with an attached bloom filter
+  ASK_ARBITRARY_BLOOM: 'ask_arbitrary_bloom',
 }
 
 /**
@@ -16,6 +19,7 @@ export const messageTypes = {
  */
 export const SUBChannels = {
   CUSTODIAN_DIRECT: 'custodian-direct',
-  CUSTODIAN_SYNC: 'custodian-sync',
+  CUSTODIAN_SYNC: 'custodian-sync', 
+  CUSTODIAN_ARBITRARY: 'custodian-arbitrary', 
   CUSTODIAN_MULTICAST: 'custodian-multicast',
 }

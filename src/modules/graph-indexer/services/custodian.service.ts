@@ -8,7 +8,7 @@ import EventEmitter from 'events'
 import Pushable from 'it-pushable'
 
 import { decode, encode } from '../frame-codec.utils'
-import { CSNode, IndexedNode } from '../graph-indexer.model'
+import { CSNode, IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { SUBChannels, messageTypes } from '../../peer-to-peer/p2p.model'
 import { CoreService } from './core.service'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
@@ -19,11 +19,15 @@ const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 
 const CUS_ANNOUNCE = 'cust_announce'
 
+const ACCEPTED_ARBITRARY_FIELDS = ['parent_id', 'community_ref']
+const ARBITRARY_SEARCH_ENABLED = true;
+
 export class CustodianService {
   self: CoreService
   ipfs: IPFSHTTPClient
   myPeerId: string
   graphIndex: Collection<IndexedNode>
+  graphDocs: Collection<IndexedDocument>
   graphCs: Collection<CSNode>
   asks: Set<string>
   events: EventEmitter
@@ -159,6 +163,32 @@ export class CustodianService {
       },
     )
   }
+  async _receiveArbitraryBloom(payload:{
+    bloom: any
+    field: string
+    exact_match: string
+  }, fromId: string) {
+    if (fromId === this.myPeerId) {
+      return
+    }
+    if(!ACCEPTED_ARBITRARY_FIELDS.includes(payload.field)) {
+      return;
+    }
+    const filter:BloomFilter = BloomFilter.fromJSON(payload.bloom);
+    const docs = await this.graphDocs.find({
+      [`content.${payload.field}`]: payload.exact_match
+    }).toArray()
+    
+    console.log(docs)
+    
+    const newIds = []
+    for(const doc of docs) {
+      if(!filter.has(doc.id)) {
+        newIds.push(doc.id)
+      }
+    }
+    console.log(newIds)
+  }
   /**
    * Announces custodianship of locally stored documents.
    * This function mainly does not important in the overall architecture. However, eventually routing will be necessary for maximum scalability.
@@ -217,6 +247,8 @@ export class CustodianService {
       void this._receiveSubgraph(msgObj, message.from)
     } else if (msgObj.type === messageTypes.ANNOUNCE_NODE) {
       void this._receiveNodeAnnounce(msgObj, message.from)
+    } else if(msgObj.type === messageTypes.ASK_ARBITRARY_BLOOM) {
+      void this._receiveArbitraryBloom(msgObj, message.from)
     }
   }
   /**
@@ -293,6 +325,29 @@ export class CustodianService {
         yield id
       }
     }
+  }
+  async *remoteFind(field: string, value: any) {
+    
+    //First do a local find
+    const ids = await this.graphDocs.distinct('id', {
+      [field]: value
+    })
+    console.log(ids)
+
+    const filter = BloomFilter.from(ids, 0.001)
+    const msg = {
+      type: messageTypes.CUS_ASK_SUBGRAPH,
+      bloom: filter.saveAsJSON(),
+      field,
+      exact_match: value
+    }
+
+    const codedMessage = encode(msg)
+    await this.ipfs.pubsub.publish(
+      Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_ARBITRARY),
+      codedMessage,
+    )
+    yield 'lol'
   }
   /**
    * Retrieves list of child entities in a subgraph from the local database only.
@@ -371,22 +426,37 @@ export class CustodianService {
     } catch {}
   }
   async start() {
+    //Fire up collections
     this.graphIndex = this.self.db.collection('graph.index')
     this.graphCs = this.self.db.collection('graph.cs')
+    this.graphDocs = this.self.db.collection('graph.docs')
     this.custodianNodes = this.self.db.collection('custodian_nodes')
+
+    //Hook into IPFS node
     this.ipfs = createIpfs({ host: ConfigService.getConfig().ipfsHost })
 
-    console.log(await this.ipfs.id())
+    //Save our IPFS peer id
     this.myPeerId = (await this.ipfs.id()).id
     logger.info(`IPFS PeerId: ${this.myPeerId}`)
-    console.log('ipfs peer is ES', this.myPeerId)
+
+    //Fire up pubsub channels
     void this.ipfs.pubsub.subscribe(IPFS_PUBSUB_TOPIC, this.handleSub)
     void this.ipfs.pubsub.subscribe(
       Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
       this.handleSub,
     )
+
+    if (ARBITRARY_SEARCH_ENABLED) {
+      void this.ipfs.pubsub.subscribe(
+        Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_ARBITRARY),
+        this.handleSub,
+      )
+    }
+
     logger.info('Announcing node to world')
     await this.announceNode()
+
+    //Register schedules
     NodeSchedule.scheduleJob('*/15 * * * *', this.announceNode)
     NodeSchedule.scheduleJob('* * * * *', this.announceCustodian)
     NodeSchedule.scheduleJob('* * * * *', this.checkPeers)

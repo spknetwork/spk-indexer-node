@@ -79,7 +79,6 @@ export class Document {
     console.log(args)
     if (args.creator_id) {
       query['creator_id'] = args.creator_id
-      void indexerContainer.self.postSpider.pullSingle(args.creator_id)
     }
     if (args.parent_id || args.parent_id === null) {
       query['parent_id'] = args.parent_id
@@ -126,7 +125,6 @@ export const Resolvers = {
     }
     if (args.creator_id) {
       query['creator_id'] = args.creator_id
-      void indexerContainer.self.postSpider.pullSingle(args.creator_id)
       void (async () => {
         try {
           for await(let _ of indexerContainer.self.docCacheService.getDocsForUserFromIdx(args.creator_id)) {}
@@ -164,17 +162,6 @@ export const Resolvers = {
   socialPost: async (args: any) => {
     const postContent = await indexerContainer.self.docCacheService.getDocument(args.post_id)
 
-    const children = async () => {
-      const childIds = indexerContainer.self.docCacheService.getDocChildren(args.post_id)
-      const out = []
-      for await (const child of childIds) {
-        if (child.content) {
-          child.content['author'] = () => Resolvers.ceramicProfile({ userId: child.creatorId })
-          out.push(child.content)
-        }
-      }
-      return out
-    }
     return new SocialPost(postContent)
   },
   followingFeed: async (args: any) => {

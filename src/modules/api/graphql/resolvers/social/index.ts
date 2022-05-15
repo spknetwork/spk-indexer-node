@@ -45,6 +45,10 @@ export class SocialPost {
     return this.data.version_id;
   }
 
+  get state_control() {
+    return this.data.state_control || {};
+  }
+
   get parent_id() {
     return this.data.parent_id;
   }
@@ -94,20 +98,29 @@ export class SocialPost {
   }
 
   get created_at() {
-    return this.data.created_at.toISOString();
+    return new Date(this.data.created_at).toISOString();
   }
 
   get updated_at() {
-    return this.data.updated_at.toISOString();
+    return new Date(this.data.updated_at).toISOString();
   }
 
   async children() {
+    if(!this.stream_id) {
+      return []
+    }
     const childIds = indexerContainer.self.docCacheService.getDocChildren(this.stream_id)
     const out = []
     for await (const child of childIds) {
       out.push(new SocialPost(child))
     }
     return out
+  }
+
+  async parent_post() {
+    const doc = await indexerContainer.self.docCacheService.getDocument(this.parent_id)
+    
+    return new SocialPost(doc)
   }
 
   author() {

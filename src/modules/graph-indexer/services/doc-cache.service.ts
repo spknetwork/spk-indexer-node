@@ -50,6 +50,9 @@ export class DocCacheService {
               last_pinged: new Date(),
               content: tileDoc.content.content,
               updated_at: tileDoc.content.updated_at,
+              state_control: {
+                height: state_counter,
+              }
             },
           },
         )
@@ -73,6 +76,9 @@ export class DocCacheService {
     // Assign creator ID as the first controller on the document
     const creatorId = tileDoc.controllers[0]
 
+    const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
+
+    
     await this.core.graphDocs.insertOne({
       id: streamId,
       content: tileDoc.content.content,
@@ -87,9 +93,11 @@ export class DocCacheService {
       version_id: tileDoc.tip.toString(),
       creator_id: creatorId,
       type: 'LINKED_DOC',
+      state_control: {
+        height: state_counter
+      }
     })
 
-    const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
     
     void this.core.oplogService.insertEntry({
       type: state_counter === 0 ? 'CREATE' : 'UPDATE',
@@ -218,6 +226,7 @@ export class DocCacheService {
       }
       return {
         creator_id: cachedDoc.creator_id,
+        version_id: cachedDoc.version_id,
         stream_id: cachedDoc.id,
         parent_id: cachedDoc.parent_id,
         content: cachedDoc.content,
@@ -232,8 +241,10 @@ export class DocCacheService {
       const creator_id = tileDoc.metadata.controllers[0]
       const nextContent = (tileDoc.content as any).content
 
+      const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
+
       await this.core.graphDocs.insertOne({
-        id: stream_id,
+        id: tileDoc.id.toString(),
         parent_id: tileDoc.state.content.parent_id,
         content: nextContent,
         created_at: new Date(tileDoc.state.content.created_at),
@@ -246,20 +257,23 @@ export class DocCacheService {
         creator_id: creator_id,
         pinned: false,
         type: 'LINKED_DOC',
+        state_control: {
+          height: state_counter,
+        }
       })
       await this.core.oplogService.insertEntry({
         type: 'CREATE',
-        stream_id: stream_id,
+        stream_id: tileDoc.id.toString(),
         date: new Date(),
         meta: {
-          state_counter: 0,
+          state_counter: state_counter,
           version_id: tileDoc.tip.toString(),
         },
       })
       return {
         creator_id: creator_id,
         parent_id: tileDoc.state.content.parent_id,
-        stream_id: stream_id,
+        stream_id: tileDoc.id.toString(),
         content: (tileDoc.content as any).content, //this is probably not safe longterm.
         created_at: tileDoc.state.content.created_at,
         updated_at: tileDoc.state.content.updated_at,
@@ -350,7 +364,7 @@ export class DocCacheService {
   async createDocument(content, parent_id?: string): Promise<TileDocument<CeramicDocContent>> {
     const permlink = base64url.encode(Crypto.randomBytes(6))
     const now = new Date()
-    const doc = await TileDocument.create<CeramicDocContent>(
+    const tileDoc = await TileDocument.create<CeramicDocContent>(
       this.ceramic,
       {
         parent_id: parent_id,
@@ -363,15 +377,18 @@ export class DocCacheService {
     )
     let dataRecord = await this.core.idx.get('rootPosts', this.ceramic.did.id)
     if (dataRecord) {
-      dataRecord[permlink] = doc.id.toUrl()
+      dataRecord[permlink] = tileDoc.id.toUrl()
     } else {
       dataRecord = {
-        [permlink]: doc.id.toUrl(),
+        [permlink]: tileDoc.id.toUrl(),
       }
     }
     await this.core.idx.set('rootPosts', dataRecord)
+
+    const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
+
     await this.core.graphDocs.insertOne({
-      id: doc.id.toString(),
+      id: tileDoc.id.toString(),
       content,
       created_at: new Date(),
       expire: null,
@@ -382,17 +399,20 @@ export class DocCacheService {
       parent_id: parent_id,
       creator_id: this.ceramic.did.id,
       type: 'LINKED_DOC',
+      state_control: {
+        height: state_counter
+      }
     })
     await this.core.oplogService.insertEntry({
       type: 'CREATE',
-      stream_id: doc.id.toString(),
+      stream_id: tileDoc.id.toString(),
       date: new Date(),
       meta: {
-        state_counter: 0,
-        version_id: doc.tip.toString(),
+        state_counter: state_counter,
+        version_id: tileDoc.tip.toString(),
       },
     })
-    return doc
+    return tileDoc
   }
 
   public getMongoSortOption(sort: DocSortOption): any {

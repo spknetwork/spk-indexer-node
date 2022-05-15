@@ -1,9 +1,15 @@
 export const schema = `
     scalar JSON
+
+    type DocumentStateControl {
+        height: Int
+    }
+
     type SocialContent {
         stream_id: String
         version_id: String
         parent_id: String
+        creator_id: String
 
         title: String
         body: String
@@ -28,6 +34,10 @@ export const schema = `
 
         created_at: String
         updated_at: String
+
+        parent_post: SocialContent
+
+        state_control: DocumentStateControl
     }
     
     type BasicProfile {

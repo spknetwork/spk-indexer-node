@@ -34,6 +34,9 @@ export class IndexedDocument implements SpkCollectionItem {
   pinned: boolean
   creator_id?: string
   type: string
+  state_control: {
+    height: number
+  }
 }
 
 /**

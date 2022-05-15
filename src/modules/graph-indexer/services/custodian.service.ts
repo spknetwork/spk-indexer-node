@@ -14,6 +14,7 @@ import { CoreService } from './core.service'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
 import { ConfigService } from '../../../config.service'
 import { logger } from '../../../common/logger.singleton'
+import GitCommitInfo from 'git-commit-info'
 
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 
@@ -154,6 +155,7 @@ export class CustodianService {
           name: payload.node_info.name,
           motd: payload.node_info.motd,
           version: payload.node_info.version,
+          version_commit: payload.node_info.version_commit,
           operator: payload.node_info.operator,
           cryptoAccounts: payload.node_info.cryptoAccounts,
         },
@@ -420,6 +422,7 @@ export class CustodianService {
             name,
             cryptoAccounts,
             version: process.env.npm_package_version,
+            version_commit: GitCommitInfo().hash
           },
         }),
       ))

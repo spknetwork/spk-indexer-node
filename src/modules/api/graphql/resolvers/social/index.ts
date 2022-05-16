@@ -118,6 +118,9 @@ export class SocialPost {
   }
 
   async parent_post() {
+    if(!this.parent_id) {
+      return null
+    }
     const doc = await indexerContainer.self.docCacheService.getDocument(this.parent_id)
     
     return new SocialPost(doc)

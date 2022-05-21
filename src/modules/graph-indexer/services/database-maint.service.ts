@@ -4,8 +4,16 @@ import { CoreService } from './core.service'
 export class DatabaseMaintService {
   static async createIndexes(core: CoreService) {
     logger.info('Creating Mongo indexes...')
-    await this.createPkIndexes(core)
-    await this.createDateIndexes(core)
+    try {
+      await this.createPkIndexes(core)
+    } catch (ex) {
+
+    }
+    try {
+      await this.createDateIndexes(core)
+    } catch (ex) {
+
+    }
 
     logger.info('Finished creating Mongo indexes')
   }

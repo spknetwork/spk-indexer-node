@@ -179,6 +179,10 @@ export const Resolvers = {
       creator_id: {
         $in: dids
       }
+    }, {
+      sort: {
+        created_at: -1
+      }
     }).toArray())
     return docs.map((e: any) => {
       return new SocialPost(e)

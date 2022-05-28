@@ -188,6 +188,21 @@ export const Resolvers = {
       return new SocialPost(e)
     })
   },
+  following: async (args: any) => {
+    const connections = await indexerContainer.self.idx.get('socialConnectionIndex', args.did)
+    const output = Object.values(connections)
+
+    let out = []
+    for(let e of output) {
+      out.push({
+        did: e.target,
+        profile: await Resolvers.ceramicProfile({ userId: e.target })
+      })
+    }
+    
+
+    return out;
+  },
   ceramicProfile: CeramicProfile,
   pubsubPeers: async () => {
     const peers = await indexerContainer.self.custodianSystem.ipfs.pubsub.peers(

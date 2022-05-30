@@ -116,6 +116,10 @@ export const schema = `
         address: String
         did: String
     }
+    type Following {
+        did: String
+        profile: CeramicProfile
+    }
     type Query {
         
         resolveCaipLink(address: String): CAIP10
@@ -129,5 +133,6 @@ export const schema = `
         oplogFeed(pagination_id: String): OplogOut
         publicFeed(tag: String, text: String, creator_id: String, parent_id: String): [SocialContent]
         followingFeed(did: String): [SocialContent]
+        following(did: String): [Following]
     }
 `

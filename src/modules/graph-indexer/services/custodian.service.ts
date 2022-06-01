@@ -404,7 +404,32 @@ export class CustodianService {
     const peers = await this.ipfs.pubsub.peers(
       Path.posix.join(IPFS_PUBSUB_TOPIC, SUBChannels.CUSTODIAN_SYNC),
     )
-    console.log(peers)
+    const swarmPeers = await this.ipfs.swarm.peers({
+      verbose: true
+    })
+    for(let peer of swarmPeers) {
+      if(peers.includes(peer.peer)) {
+       
+        for await (let _ of this.ipfs.ping(peer.peer, {
+          count: 1
+        })) {
+
+        }
+        const cusNode = await this.custodianNodes.findOne(
+          {
+            peer_id: peer.peer,
+          }
+        )
+        if(cusNode) {
+          await this.custodianNodes.findOneAndUpdate(cusNode, {
+            $set: {
+              latency: Number(Number(peer.latency.split('ms')[0]).toFixed(2)),
+              last_seen: new Date()
+            }
+          })
+        }
+      }
+    }
   }
   /**
    * Announces that this node exists in the network

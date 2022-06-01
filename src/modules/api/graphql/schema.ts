@@ -92,6 +92,7 @@ export const schema = `
     }
     type PubsubPeer {
         peerId: String
+        latency: String
     }
     type SyncHead {
         streamId: String

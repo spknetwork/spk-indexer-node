@@ -208,11 +208,20 @@ export const Resolvers = {
     const peers = await indexerContainer.self.custodianSystem.ipfs.pubsub.peers(
       '/spk.network/testnet-dev/custodian-sync',
     )
-    return peers.map((e) => {
-      return {
-        peerId: e,
-      }
+    const swarmPeers = await indexerContainer.self.custodianSystem.ipfs.swarm.peers({
+      verbose: true
     })
+    let out = []
+    for(let peer of swarmPeers) {
+      if(peers.includes(peer.peer)) {
+        console.log(peer)
+        out.push({
+          peerId: peer.peer,
+          latency: peer.latency
+        })
+      }
+    }
+    return out
   },
   oplogFeed: async (args: any) => {
     return await indexerContainer.self.oplogService.getEntries(args.pagination_id)

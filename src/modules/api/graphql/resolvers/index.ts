@@ -203,6 +203,22 @@ export const Resolvers = {
 
     return out;
   },
+  followers: async (args: any) => {
+    const connections = await indexerContainer.self.socialConnections.connections.find({
+      following: args.did
+    }).toArray()
+
+    let out = []
+    for(let e of connections) {
+      out.push({
+        did: e.follower,
+        profile: await Resolvers.ceramicProfile({ userId: e.follower })
+      })
+    }
+    
+
+    return out;
+  },
   ceramicProfile: CeramicProfile,
   pubsubPeers: async () => {
     const peers = await indexerContainer.self.custodianSystem.ipfs.pubsub.peers(

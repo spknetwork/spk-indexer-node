@@ -135,5 +135,6 @@ export const schema = `
         publicFeed(tag: String, text: String, creator_id: String, parent_id: String): [SocialContent]
         followingFeed(did: String): [SocialContent]
         following(did: String): [Following]
+        followers(did: String): [Following]
     }
 `

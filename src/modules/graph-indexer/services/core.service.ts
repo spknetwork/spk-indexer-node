@@ -54,6 +54,7 @@ export class CoreService {
   profileService: ProfilesService
   caipService: CAIP10Service
   pins: PinManager
+  socialConnections: SocialConnections
 
   constructor(readonly ceramic: CeramicClient, public readonly mongoClient: MongoClient) {
     this.db = this.mongoClient.db(ConfigService.getConfig().mongoDatabaseName)

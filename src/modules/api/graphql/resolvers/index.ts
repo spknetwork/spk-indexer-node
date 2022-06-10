@@ -212,7 +212,7 @@ export const Resolvers = {
     for(let e of connections) {
       out.push({
         did: e.follower,
-        profile: await Resolvers.ceramicProfile({ userId: e.follower })
+        profile: async () => await Resolvers.ceramicProfile({ userId: e.follower })
       })
     }
     

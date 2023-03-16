@@ -11,6 +11,7 @@ export interface IndexerAppConfig {
   serviceVersion: string
   enableCors: boolean
 }
+export const NULL_DID = 'did:key:z6MkeTG3bFFSLYVU7VqhgZxqr6YzpaGrQtFMh1uvqGy1vDnP' // Null address should go to an empty ed25519 key
 
 // see config example https://www.npmjs.com/package/@opentelemetry/exporter-jaeger
 function getJaegerConfig(): JaegerConfig {
@@ -52,8 +53,8 @@ export class ConfigService {
     return {
       mongoDatabaseName: process.env.MONGO_DATABASE || 'spk-indexer-test',
       mongoHost: process.env.MONGO_HOST || 'localhost:27017',
-      ceramicHost: process.env.CERAMIC_HOST || 'https://d12-b-ceramic.3boxlabs.com',
-      ipfsHost: process.env.IPFS_HOST || 'localhost:5001',
+      ceramicHost: process.env.CERAMIC_HOST || 'https://ceramic.web3telekom.xyz',
+      ipfsHost: process.env.IPFS_HOST || '127.0.0.1:5001',
       apiListenPort,
       testMode: process.env.TEST_MODE === 'true',
       jaegerConfig: getJaegerConfig(),

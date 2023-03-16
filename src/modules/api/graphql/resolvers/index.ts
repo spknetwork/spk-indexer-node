@@ -150,7 +150,7 @@ export const Resolvers = {
   },
   documentChildren: async (args: any) => {
     const out = []
-    for await (const item of indexerContainer.self.docCacheService.getDocChildren(args.docId)) {
+    for await (const item of indexerContainer.self.docCacheService.getDocChildren(args.streamId)) {
       out.push({
         ...item,
         contentRaw: item,

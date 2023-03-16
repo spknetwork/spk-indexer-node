@@ -1,3 +1,4 @@
+import { NULL_DID } from "../../../../../config.service";
 import { indexerContainer } from "../../../indexer-api.module";
 
 export async function CeramicProfile(args: any) {
@@ -38,7 +39,7 @@ export class SocialPost {
   }
 
   get stream_id() {
-    return this.data.id;
+    return this.data.stream_id || this.data.id;
   }
 
   get version_id() {
@@ -54,42 +55,72 @@ export class SocialPost {
   }
 
   get title() {
+    if(this.creator_id === NULL_DID) {
+      return 'Unsupported Content'
+    }
     return this.data.content.title;
   }
 
   get body() {
+    if(this.creator_id === NULL_DID) {
+      return 'Unsupported Content: This content was created using the arbitrary content interface. Please access via the associated indexer.'
+    }
     return this.data.content.body;
   }
 
   get category() {
+    if(!this.data.content) {
+      return null
+    }
     return this.data.content.category;
   }
 
   get lang() {
+    if(!this.data.content) {
+      return null
+    }
     return this.data.content.lang;
   }
 
   get type() {
+    if(!this.data.content) {
+      return null
+    }
     return this.data.content.type;
   }
 
   get app() {
+    if(!this.data.content) {
+      return null
+    }
     return this.data.content.app;
   }
 
   get json_metadata() {
+    if(!this.data.content) {
+      return null
+    }
     return this.data.content.json_metadata;
   }
 
   get app_metadata() {
+    if(!this.data.content) {
+      return null
+    }
     return this.data.content.app_metadata;
   }
 
   get debug_metadata() {
+    if(!this.data.content) {
+      return null
+    }
     return this.data.content.debug_metadata;
   }
 
   get community_ref() {
+    if(!this.data.content) {
+      return null
+    }
     return this.data.content.community_ref;
   }
 

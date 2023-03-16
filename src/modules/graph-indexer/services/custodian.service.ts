@@ -53,7 +53,7 @@ export class CustodianService {
    */
   async _receiveAnnounce(payload, fromId) {
     if (this.myPeerId === fromId) {
-      console.log(payload, fromId)
+      //console.log(payload, fromId)
       console.warn('peerId is the same as local node')
       return
     }
@@ -99,7 +99,7 @@ export class CustodianService {
    * @param fromId
    */
   async _receiveBloomAnnounce(payload, fromId) {
-    console.log(payload, fromId)
+    //console.log(payload, fromId)
     const parsedBloom = JSON.parse(payload.bloom)
     const bloomFilter = parsedBloom ? BloomFilter.fromJSON(parsedBloom) : null
 
@@ -181,7 +181,6 @@ export class CustodianService {
       [`content.${payload.field}`]: payload.exact_match
     }).toArray()
     
-    console.log(docs)
     
     const newIds = []
     for(const doc of docs) {
@@ -189,7 +188,6 @@ export class CustodianService {
         newIds.push(doc.id)
       }
     }
-    console.log(newIds)
   }
   /**
    * Announces custodianship of locally stored documents.
@@ -334,7 +332,6 @@ export class CustodianService {
     const ids = await this.graphDocs.distinct('id', {
       [field]: value
     })
-    console.log(ids)
 
     const filter = BloomFilter.from(ids, 0.001)
     const msg = {
@@ -392,7 +389,7 @@ export class CustodianService {
         stream_id: args.stream_id,
       },
     }
-    console.log(msg)
+    
     logger.info(`Announcing post creation:`)
     const codedMessage = encode(msg)
     await this.ipfs.pubsub.publish(

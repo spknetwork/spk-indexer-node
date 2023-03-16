@@ -2,6 +2,9 @@ import { Collection, ObjectId } from 'mongodb'
 import { CoreService } from './core.service'
 import { OplogEntry } from '../graph-indexer.model'
 
+/**
+ * TODO: create a websocket API for instaneous receiving of DB events
+ */
 export class OplogService {
   self: CoreService
   oplog: Collection<OplogEntry>

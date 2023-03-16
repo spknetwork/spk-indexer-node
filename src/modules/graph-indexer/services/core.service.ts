@@ -8,7 +8,7 @@ import { ObjectId } from 'bson'
 import { CustodianService } from './custodian.service'
 import { PostSpiderService } from './post-spider.service'
 import { SchemaValidatorService } from '../../schema-validator/services/schema-validator.service'
-import { ConfigService } from '../../../config.service'
+import { ConfigService, NULL_DID } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
 import { BloomFilter } from 'bloom-filters'
@@ -135,7 +135,7 @@ export class CoreService {
       parent_id: id,
     })
 
-    console.log(docs)
+    
     const out = []
     for await (const entry of docs) {
       out.push(entry._id)
@@ -231,7 +231,7 @@ export class CoreService {
     await this.nodeIdentity.start()
     this.idx = new IDX({
       autopin: true,
-      ceramic: this.ceramic,
+      ceramic: this.ceramic as any,
       aliases: idxAliases,
     })
     logger.info(`Node DID: ${this.nodeIdentity.identity.id}`)
@@ -253,10 +253,70 @@ export class CoreService {
 
     this.socialConnections = new SocialConnections(this)
     await this.socialConnections.start()
-    
+
     this.pins = new PinManager(this)
     await this.pins.start()
 
+    
+
+    
+    
+    /*const commit = await TileDocument.makeGenesis(this.ceramic, {
+      type: 'test',
+      owner: 'eddiespino',
+      permlink: 'pfdpnsvp'
+    }, {
+      
+      deterministic: true
+    })
+    const tilDoc = await this.ceramic.createStreamFromGenesis<TileDocument>(
+      TileDocument.STREAM_TYPE_ID,
+      commit,
+      {
+        //syncTimeoutSeconds: 0
+      }
+    )*/
+
+    // const tileDoc = await TileDocument.create(this.ceramic, null, {
+    //   tags: ["hello world this is a test!"],
+    //   deterministic: true,
+    //   controllers: [NULL_DID]
+    // })
+
+    // const header = {
+    //   special_content: {
+    //     type: 'test',
+    //     owner: 'eddiespino',
+    //     permlink: 'pfdpnsvp'
+    //   },
+    //   tags: ['test'],
+    //   deterministic: true,
+    //   controllers: [NULL_DID]
+    // }
+    // const result = { header }
+    // dagCbor.encode(result)
+
+    // const commit = dagCbor.encode(result)
+    // console.log(commit, result)
+    // const tileDoc2 = await this.ceramic.createStreamFromGenesis<TileDocument>(
+    //   TileDocument.STREAM_TYPE_ID,
+    //   result,
+      
+    // )
+    // console.log('genesis with metadata', tileDoc2.id)
+    //Leave for later when doing upvotes/downvotes
+    /*const tilDoc2 = await TileDocument.createFromGenesis(this.ceramic, {
+      header: {
+        controllers: []
+      },
+      data: {
+        type: 'test',
+        owner: 'eddiespino',
+        permlink: 'pfdpnsvp'
+      }
+    })*/
+   
+    // console.log('genesis test', tileDoc.id, )
     /*const testDoc = await TileDocument.load(
       this.ceramic,
       'kjzl6cwe1jw146b542t7glg35xnpbx781trjk4hm73dbqazdg4kjd6u0oj4cf2h',
@@ -273,10 +333,10 @@ export class CoreService {
       'kjzl6cwe1jw147nu8nkdx3stc4ztf8e3u6h5l5s54vbsyjfgmgt17flr895ugso',
     )*/
     try {
-      const indexedStuff = await this.graphIndex.find({}).toArray()
+      /*const indexedStuff = await this.graphIndex.find({}).toArray()
       for (const idstuff of indexedStuff) {
         await this.docCacheService.refreshCachedDoc(idstuff.id)
-      }
+      }*/
     } catch (ex) {
       console.log(ex)
     }

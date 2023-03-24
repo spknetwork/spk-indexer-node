@@ -14,7 +14,7 @@ import { SpkCollectionItem } from '../mongo-access/mongo-access.model'
  */
 export class IndexedDocument implements SpkCollectionItem {
   // Internal / mongo only ID
-  _id: ObjectId
+  _id?: ObjectId
   /**
    * Stream ID
    */
@@ -37,6 +37,7 @@ export class IndexedDocument implements SpkCollectionItem {
   state_control: {
     height: number
   }
+  [x: string]: any
 }
 
 /**

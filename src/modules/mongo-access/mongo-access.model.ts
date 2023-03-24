@@ -7,6 +7,6 @@ export enum MongoCollections {
 }
 
 export interface SpkCollectionItem extends Document {
-  _id: ObjectId
+  _id?: ObjectId
   id: string
 }

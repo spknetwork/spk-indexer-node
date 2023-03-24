@@ -10,9 +10,23 @@ import { Span } from '@opentelemetry/api'
 import { logger } from '../../../common/logger.singleton'
 import Crypto from 'crypto'
 import base64url from 'base64url'
+import { NULL_DID } from '../../../config.service'
 
 export class DocCacheService {
   constructor(private readonly ceramic: CeramicClient, private readonly core: CoreService) {}
+
+  async resolvePermlink(streamId: string) {
+    const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId)
+    const owner = tileDoc.metadata.controllers[0];
+    const rootDocs = await this.core.idx.get(IDX_ROOT_DOCS_KEY, owner)
+    console.log(rootDocs, owner)
+    for(let [permlink, value] of Object.entries(rootDocs || {})) {
+      if(value === streamId) {
+        return permlink;
+      }
+    }
+    return null;
+  }
 
   /**
    * @description Refresh a cached doc that already exists
@@ -78,6 +92,21 @@ export class DocCacheService {
 
     const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
 
+    const parentDoc = await TileDocument.load(this.ceramic, tileDoc.content.parent_id)
+
+    let parent_headers = null
+    const metadata = parentDoc.metadata
+
+    if(metadata) {
+      if(metadata.controllers.includes(NULL_DID) && metadata.types.includes("external_ref") && metadata.types.includes("social_post")) {
+        parent_headers = {
+          author: metadata.author,
+          permlink: metadata.permlink
+        }
+      }
+    }
+
+    const permlink = await this.resolvePermlink(streamId)
     
     await this.core.graphDocs.insertOne({
       id: streamId,
@@ -90,6 +119,10 @@ export class DocCacheService {
       last_pinged: new Date(),
       pinned: true,
       parent_id: tileDoc.content.parent_id,
+      parent_headers,
+      app_metadata: {
+        permlink
+      },
       version_id: tileDoc.tip.toString(),
       creator_id: creatorId,
       type: 'LINKED_DOC',
@@ -225,6 +258,7 @@ export class DocCacheService {
         span.addEvent('return_cached_doc')
       }
       return {
+        ...cachedDoc,
         creator_id: cachedDoc.creator_id,
         version_id: cachedDoc.version_id,
         stream_id: cachedDoc.id,
@@ -243,9 +277,31 @@ export class DocCacheService {
 
       const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
 
+      const permlink = await this.resolvePermlink(stream_id)
+
+      const parentDoc = await TileDocument.load(this.ceramic, tileDoc.content.parent_id)
+
+      let parent_headers = null
+      const metadata = parentDoc.metadata
+      
+      if(metadata) {
+        if(metadata.controllers.includes(NULL_DID) && metadata.types.includes("external_ref") && metadata.types.includes("social_post")) {
+          parent_headers = {
+            author: metadata.author,
+            permlink: metadata.permlink
+          }
+        }
+      }
+      
+
       await this.core.graphDocs.insertOne({
         id: tileDoc.id.toString(),
         parent_id: tileDoc.state.content.parent_id,
+        parent_headers,
+        app_metadata: {
+          permlink
+        },
+        app: "social_type",
         content: nextContent,
         created_at: new Date(tileDoc.state.content.created_at),
         updated_at: new Date(tileDoc.state.content.updated_at),
@@ -398,6 +454,10 @@ export class DocCacheService {
     await this.core.graphDocs.insertOne({
       id: tileDoc.id.toString(),
       content,
+      app_metadata: {
+        permlink
+      },
+      app: "social_post",
       created_at: new Date(),
       expire: null,
       first_seen: new Date(),
@@ -405,6 +465,7 @@ export class DocCacheService {
       last_pinged: new Date(),
       pinned: true,
       parent_id: parent_id,
+      parent_headers,
       creator_id: this.ceramic.did.id,
       type: 'LINKED_DOC',
       state_control: {

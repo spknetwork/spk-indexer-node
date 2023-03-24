@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "npm run dev:clay",
-    "dev:clay": "cross-env TEST_MODE=true CERAMIC_HOST=https://ceramic.web3telekom.xyz/ ts-node-dev src/index.ts",
+    "dev:clay": "cross-env TEST_MODE=true CERAMIC_HOST=https://ceramic.3speak.tv/ ts-node-dev src/index.ts",
     "dev:local": "cross-env TEST_MODE=true CERAMIC_HOST=http://localhost:7007 ts-node-dev src/index.ts",
     "lint:fix": "eslint --fix \"src/**/*.{ts,tsx}\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",

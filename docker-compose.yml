@@ -31,7 +31,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 'wMu$OHB0e86r'
     ports:
-      - 27027:27017
+      - 27028:27017
     networks:
       - spk-indexer-network
     volumes:

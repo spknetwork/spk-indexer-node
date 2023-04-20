@@ -2,6 +2,7 @@ version: "3.3"
 
 services:
   spk-indexer-node: # name of the service
+    build: .
     image: spk-indexer-node # the image to use
     container_name: spk-indexer-node # what to label the container for docker ps
     ports:

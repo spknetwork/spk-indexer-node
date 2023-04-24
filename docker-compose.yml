@@ -35,6 +35,7 @@ services:
       - spk-indexer-network
     volumes:
       - ./data/mongodb:/data/db
+      - ./deploy/replica.key:/data/db/mongodb.key
   ipfs:
     container_name: ipfs
     image: ipfs/go-ipfs:latest

@@ -128,8 +128,8 @@ export const Resolvers = {
       void (async () => {
         try {
           for await(let _ of indexerContainer.self.docCacheService.getDocsForUserFromIdx(args.creator_id)) {}
-        } catch {
-  
+        } catch(ex) {
+          console.log(ex)
         }
       })()
     }

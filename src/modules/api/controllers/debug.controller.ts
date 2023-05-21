@@ -43,7 +43,7 @@ export class DebugApiController {
       const peerTopics = [IPFS_PUBSUB_TOPIC]
       for (const topic of peerTopics) {
         const peersForTopic = await ipfsContainer.self.pubsub.peers(topic)
-        pubsubPeersByTopic[topic] = peersForTopic
+        pubsubPeersByTopic[topic] = peersForTopic.map(e => e.toString())
       }
 
       const bwStatIterable = ipfsContainer.self.stats.bw()

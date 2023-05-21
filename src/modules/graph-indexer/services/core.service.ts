@@ -11,7 +11,7 @@ import { SchemaValidatorService } from '../../schema-validator/services/schema-v
 import { ConfigService, NULL_DID } from '../../../config.service'
 import { IndexedDocument, IndexedNode } from '../graph-indexer.model'
 import { MongoCollections } from '../../mongo-access/mongo-access.model'
-import { BloomFilter } from 'bloom-filters'
+import BloomFilters from 'bloom-filters'
 import { DocCacheService } from './doc-cache.service'
 import { DatabaseMaintService } from './database-maint.service'
 import { logger } from '../../../common/logger.singleton'
@@ -28,6 +28,7 @@ import { PinManager } from './pin-manager.service'
 import { SocialConnections } from './social-graph/social-connections'
 import { CeramicSigner } from '@ceramicnetwork/common'
 import * as dagCbor from '@ipld/dag-cbor'
+const {BloomFilter} = BloomFilters
 
 
 const idxAliases = {
@@ -257,8 +258,8 @@ export class CoreService {
     this.pins = new PinManager(this)
     await this.pins.start()
 
-    
-
+    // const permlink = await this.docCacheService.resolvePermlink('kjzl6cwe1jw149jbqnz49pwlbdqi30ouvk22m35lagy6jir2gt9pj922srms505')
+    // console.log(permlink)
     
     
     /*const commit = await TileDocument.makeGenesis(this.ceramic, {

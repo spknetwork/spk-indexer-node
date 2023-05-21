@@ -3,7 +3,7 @@ import { IPFSHTTPClient, create as createIpfs } from 'ipfs-http-client'
 import { Collection } from 'mongodb'
 import NodeSchedule from 'node-schedule'
 import Path from 'path'
-import { BloomFilter } from 'bloom-filters'
+import BloomFilters from 'bloom-filters'
 import EventEmitter from 'events'
 import Pushable from 'it-pushable'
 
@@ -15,6 +15,7 @@ import { TileDocument } from '@ceramicnetwork/stream-tile'
 import { ConfigService } from '../../../config.service'
 import { logger } from '../../../common/logger.singleton'
 import GitCommitInfo from 'git-commit-info'
+const {BloomFilter} = BloomFilters
 
 const IPFS_PUBSUB_TOPIC = '/spk.network/testnet-dev'
 
@@ -176,7 +177,7 @@ export class CustodianService {
     if(!ACCEPTED_ARBITRARY_FIELDS.includes(payload.field)) {
       return;
     }
-    const filter:BloomFilter = BloomFilter.fromJSON(payload.bloom);
+    const filter:BloomFilters.BloomFilter = BloomFilter.fromJSON(payload.bloom);
     const docs = await this.graphDocs.find({
       [`content.${payload.field}`]: payload.exact_match
     }).toArray()
@@ -461,7 +462,7 @@ export class CustodianService {
     this.ipfs = createIpfs({ host: ConfigService.getConfig().ipfsHost })
 
     //Save our IPFS peer id
-    this.myPeerId = (await this.ipfs.id()).id
+    this.myPeerId = (await this.ipfs.id()).id.toString()
     logger.info(`IPFS PeerId: ${this.myPeerId}`)
 
     //Fire up pubsub channels

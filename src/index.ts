@@ -1,5 +1,5 @@
-import CeramicHTTP from '@ceramicnetwork/http-client'
 import { MongoClient } from 'mongodb'
+import {CeramicClient} from '@ceramicnetwork/http-client'
 import { ConfigService } from './config.service'
 import { create as createIpfs } from 'ipfs-http-client'
 
@@ -13,7 +13,7 @@ const NETWORK_ID = '/spk.network/testnet-dev' // Future use for network isolatio
 async function startup(): Promise<void> {
   // init ceramic
   const CERAMIC_HOST = ConfigService.getConfig().ceramicHost
-  const ceramic = new CeramicHTTP(CERAMIC_HOST) //Using the public node for now.
+  const ceramic = new CeramicClient(CERAMIC_HOST) //Using the public node for now.
 
   // Start tracer
   await OpenTelemetryService.start()

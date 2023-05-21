@@ -1,7 +1,8 @@
-import { BloomFilter } from 'bloom-filters'
+import BloomFilters from 'bloom-filters'
 import { Collection, Filter } from 'mongodb'
 import { IndexedDocument } from '../graph-indexer.model'
 import { CoreService } from './core.service'
+const { BloomFilter } = BloomFilters
 
 interface BloomField {
   field: string

@@ -194,7 +194,10 @@ export class DocCacheService {
     limit = 25,
     sort: DocSortOption = DocSortOption.createddesc,
   ): AsyncGenerator<DocumentViewDto> {
-    this.core.custodianSystem.transverseChildren(doc_id).catch((e) => console.log(e))
+    // console.log('test 123')
+    this.core.custodianSystem.transverseChildren(doc_id).catch((e) => {
+      // console.log('transferred_child', doc_id, e)
+    })
     const indexedChildren = await this.core.graphIndex
       .find({
         parent_id: doc_id,
@@ -222,7 +225,7 @@ export class DocCacheService {
       },
     )
     for await (const doc of cursor) {
-      yield DocumentViewDto.fromIndexedDocument(doc)
+      yield doc as any;
     }
   }
 
@@ -236,12 +239,17 @@ export class DocCacheService {
       IDX_ROOT_DOCS_KEY,
       creatorId,
     )
-    const permlinks = Object.keys(linksFromIdx || {}).slice(skip, skip + limit)
+    const permlinks = Object.keys(linksFromIdx || {})//.slice(skip, skip + limit)
 
     for (const permlink of permlinks) {
-      const data = await this.getDocument(linksFromIdx[permlink])
-      const view = UserDocumentViewDto.fromDocumentView(data, permlink)
-      yield view
+      try {
+        const data = await this.getDocument(linksFromIdx[permlink])
+        const view = UserDocumentViewDto.fromDocumentView(data, permlink)
+        yield view
+  
+      } catch {
+
+      }
     }
   }
 
@@ -279,21 +287,23 @@ export class DocCacheService {
 
       const permlink = await this.resolvePermlink(stream_id)
 
-      const parentDoc = await TileDocument.load(this.ceramic, tileDoc.content.parent_id)
-
       let parent_headers = null
-      const metadata = parentDoc.metadata
-      
-      if(metadata) {
-        if(metadata.controllers.includes(NULL_DID) && metadata.types.includes("external_ref") && metadata.types.includes("social_post")) {
-          parent_headers = {
-            author: metadata.author,
-            permlink: metadata.permlink
+      if(tileDoc.content.parent_id) {
+        const parentDoc = await TileDocument.load(this.ceramic, tileDoc.content.parent_id)
+        const metadata = parentDoc.metadata
+        
+        if(metadata) {
+          if(metadata.controllers.includes(NULL_DID) && metadata.types.includes("external_ref") && metadata.types.includes("social_post")) {
+            parent_headers = {
+              author: metadata.author,
+              permlink: metadata.permlink
+            }
           }
         }
       }
-      
 
+      
+      
       await this.core.graphDocs.insertOne({
         id: tileDoc.id.toString(),
         parent_id: tileDoc.state.content.parent_id,

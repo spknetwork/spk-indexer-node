@@ -58,9 +58,15 @@ export class SocialConnections {
 
   async pullAll() {
     const creators_to_check = await this.self.graphDocs.distinct("creator_id");
-    console.log(creators_to_check);
     for (let did of creators_to_check) {
       await this.pullSingle(did);
+      try {
+        for await (let x of this.self.docCacheService.getDocsForUserFromIdx(did)) {
+  
+        }
+      } catch {
+
+      }
     }
   }
 

@@ -14,7 +14,7 @@
     "test:claytestnet": "cross-env CERAMIC_HOST=https://ceramic-clay.3boxlabs.com jest",
     "clean": "rimraf dist",
     "build": "npm run clean && tsc --project ./tsconfig.release.json",
-    "start": "nodemon --exec \"node --experimental-specifier-resolution=node\" dist/index.js"
+    "start": "node --experimental-specifier-resolution=node dist/index.js"
   },
   "author": "",
   "license": "ISC",

@@ -85,6 +85,14 @@ export class DocCacheService {
    * @param streamId stream ID of ceramic document to initialize in the cache
    */
   public async initializeCachedDoc(streamId: string, span: Span): Promise<void> {
+    const existingDoc = await this.core.graphDocs.find({
+      id: streamId
+    })
+
+    if(existingDoc) {
+      return;
+    }
+
     const tileDoc = await TileDocument.load<DocumentView>(this.ceramic, streamId)
 
     // Assign creator ID as the first controller on the document

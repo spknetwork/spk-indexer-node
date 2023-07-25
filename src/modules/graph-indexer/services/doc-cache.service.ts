@@ -92,21 +92,25 @@ export class DocCacheService {
 
     const state_counter = tileDoc.state.log.map(e => e.cid.toString()).indexOf(tileDoc.tip.toString());
 
-    const parentDoc = await TileDocument.load(this.ceramic, tileDoc.content.parent_id)
-
     let parent_headers = null
-    const metadata = parentDoc.metadata
-
-    if(metadata) {
-      if(metadata.controllers.includes(NULL_DID) && metadata.types.includes("external_ref") && metadata.types.includes("social_post")) {
-        parent_headers = {
-          author: metadata.author,
-          permlink: metadata.permlink
+    let permlink
+    if(tileDoc.content?.parent_id) {
+      const parentDoc = await TileDocument.load(this.ceramic, tileDoc.content.parent_id)
+  
+      const metadata = parentDoc.metadata
+  
+      if(metadata) {
+        if(metadata.controllers.includes(NULL_DID) && metadata.types.includes("external_ref") && metadata.types.includes("social_post")) {
+          parent_headers = {
+            author: metadata.author,
+            permlink: metadata.permlink
+          }
         }
       }
+
+      permlink = await this.resolvePermlink(streamId)
     }
 
-    const permlink = await this.resolvePermlink(streamId)
     
     await this.core.graphDocs.insertOne({
       id: streamId,

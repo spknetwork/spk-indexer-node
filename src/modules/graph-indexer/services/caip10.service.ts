@@ -28,15 +28,6 @@ export class CAIP10Service {
     }
   }
   async start() {
-    try {
-      await this.links.createIndex({
-        address: -1
-      }, {
-        unique: true,
-        
-      })
-    } catch {
-      
-    }
+    
   }
 }

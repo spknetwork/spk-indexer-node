@@ -74,16 +74,5 @@ export class SocialConnections {
     this.connections = this.self.db.collection("social_connections");
     NodeSchedule.scheduleJob("*/15 * * * *", this.pullAll);
     //NodeSchedule.scheduleJob('* * * * *', this.pullAll)
-    
-    try {
-      await this.connections.createIndex({
-        follower: 1,
-        following: 1
-      }, {
-        unique: true
-      })
-    } catch {
-
-    }
   }
 }

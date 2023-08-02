@@ -35,11 +35,5 @@ export class PinManager {
 
     this.pins = this.self.db.collection('pins')
 
-    await this.pins.createIndex({
-      value: 1,
-      type: 1
-    }, {
-      unique: true
-    })
   }
 }

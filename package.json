@@ -60,6 +60,7 @@
     "json-schema": "^0.4.0",
     "lodash": "^4.17.21",
     "mongodb": "^4.2.2",
+    "mongoose": "^7.4.1",
     "nestjs-otel": "^3.0.0",
     "node-schedule": "^2.1.0",
     "p-queue": "^7.1.0",

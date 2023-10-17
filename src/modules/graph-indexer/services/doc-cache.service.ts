@@ -85,7 +85,7 @@ export class DocCacheService {
    * @param streamId stream ID of ceramic document to initialize in the cache
    */
   public async initializeCachedDoc(streamId: string, span: Span): Promise<void> {
-    const existingDoc = await this.core.graphDocs.find({
+    const existingDoc = await this.core.graphDocs.findOne({
       id: streamId
     })
 

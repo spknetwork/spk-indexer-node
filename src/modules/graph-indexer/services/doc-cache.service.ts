@@ -108,7 +108,7 @@ export class DocCacheService {
       const metadata = parentDoc.metadata
   
       if(metadata) {
-        if(metadata.controllers.includes(NULL_DID) && metadata.types.includes("external_ref") && metadata.types.includes("social_post")) {
+        if(metadata.controllers.includes(NULL_DID) && metadata.types?.includes("external_ref") && metadata.types?.includes("social_post")) {
           parent_headers = {
             author: metadata.author,
             permlink: metadata.permlink

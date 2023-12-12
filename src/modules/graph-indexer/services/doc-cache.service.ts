@@ -116,8 +116,8 @@ export class DocCacheService {
         }
       }
 
-      permlink = await this.resolvePermlink(streamId)
     }
+    permlink = await this.resolvePermlink(streamId)
 
     
     await this.core.graphDocs.insertOne({

@@ -32,7 +32,7 @@ const {BloomFilter} = BloomFilters
 
 
 const idxAliases = {
-  rootPosts: 'ceramic://k2t6wyfsu4pg2d6cv2rnc8g8emhwxs1g8wde8eqa2blqsaozpws30cnobfmzcf',
+  rootPosts: 'ceramic://kjzl6cwe1jw149xy2w2qycwts4xjpvyzrkptdw20iui7r486bd6sasqb9tgglzp',
   'socialConnectionIndex': 'ceramic://kjzl6cwe1jw145f1327br2k7lkd5acrn6d2omh88xjt70ovnju491moahrxddns'
 }
 export class CoreService {
